@@ -1,0 +1,28 @@
+{
+  "name": "engineermkii",
+  "version": "1.0.0",
+  "description": "bot for handling factorio zervers via factorio.zone",
+  "main": "main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "gobot": "node ./dist/main.js"
+  },
+  "author": "rivals",
+  "license": "ISC",
+  "dependencies": {
+    "@types/mongodb": "^3.6.9",
+    "@types/node": "^14.14.31",
+    "@types/websocket": "^1.0.2",
+    "axios": "^0.21.1",
+    "discord.js": "^12.5.1",
+    "mongodb": "^3.6.4",
+    "mongoose": "^5.11.19",
+    "query-string": "^6.14.1",
+    "tiny-typed-emitter": "^2.0.3",
+    "typescript": "^4.2.3",
+    "websocket": "^1.0.33"
+  },
+  "devDependencies": {
+    "@types/mongoose": "^5.10.3"
+  }
+}

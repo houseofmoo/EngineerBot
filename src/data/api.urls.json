@@ -1,0 +1,20 @@
+{
+    "mod" : {
+        "websiteUrl" : "https://mods.factorio.com",
+        "apiUrl" : "https://mods.factorio.com/api/mods/",
+        "authUrl" : "https://auth.factorio.com/api-login"
+    },
+
+    "gameServer" : {
+        "login" : "https://factorio.zone/api/user/login",
+        "start" : "ttps://factorio.zone/api/instance/start",
+        "stop" : "https://factorio.zone/api/instance/stop",
+        "console" : "https://factorio.zone/api/instance/console",
+        "modToggle" : "https://factorio.zone/api/mod/toggle",
+        "websocket" : "wss://factorio.zone/ws"
+    },
+    "token" : {
+        "main" : "P98CCBPVdC1opxcDBj1syaJR",
+        "test1" : "vDiAAjrfbSyImtXRTqW7CDVa"
+    }
+}

@@ -1,0 +1,18 @@
+[
+    { "us-west-1": "US West" },
+    { "us-east-1": "US East" },
+    { "eu-west-1": "EU West" },
+    { "eu-central-1": "EU Central" },
+    { "eu-north-1": "EU North" },
+    { "eu-south-1": "EU South" },
+    { "af-south-1": "Africa" },
+    { "ap-southeast-2": "Australia" },
+    { "me-south-1": "Bahrain" },
+    { "sa-east-1": "Brazil" },
+    { "ap-east-1": "China" },
+    { "ap-south-1": "India" },
+    { "ap-northeast-1": "Japan" },
+    { "ap-northeast-2": "Korea" },
+    { "ap-southeast-1": "Singapore" },
+    { "eu-west-2": "UK" }
+]
