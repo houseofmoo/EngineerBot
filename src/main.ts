@@ -1,7 +1,7 @@
 import discord from 'discord.js';
-import { mongoConnect } from './helpers/mongo';
+//import { mongoConnect } from './helpers/mongo';
 import { GuildServerManager } from './managers/guild.server.manager';
-import { DiscordGuild } from './models/data.models';
+//import { DiscordGuild } from './models/data.models';
 import config from './data/config.json';
 
 async function onLaunch() {
