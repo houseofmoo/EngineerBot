@@ -3,88 +3,82 @@ import discord from 'discord.js';
 import { GuildServerManager } from './managers/guild.server.manager';
 //import { DiscordGuild } from './models/data.models';
 import config from './data/config.json';
+import { getGuild, addGuild, removeGuild } from './database/guild.db';
+
 
 async function onLaunch() {
-    // open db connection
-    const mongoose = await mongoConnect();
-
     try {
         // build managers for each guild
         await Promise.all(bot.guilds.cache.map(async (g) => {
-            let result = await DiscordGuild.findOne({ guildId: g.id });
-            if (result === null) {
-                // create since it doesnt exist
-                result = await new DiscordGuild({
+            // find guild in db
+            let guildData: any = await getGuild(g.id);
+
+            // if unknown guild, create an entry
+            if (guildData === undefined) {
+                // create new guild entry
+                const newGuild = {
                     guildId: g.id,
                     guildName: g.name
-                }).save();
+                }
+                guildData = await addGuild(newGuild);
             }
 
-            const newGuildServer = new GuildServerManager(result.guildId, bot);
-            await newGuildServer.initManagers();
-            managers.set(g.id, newGuildServer);
+            // only create manager if we successfully added guild data to db
+            if (guildData !== undefined) {
+                const newGuildServer = new GuildServerManager(g.id, bot);
+                await newGuildServer.initManagers();
+                managers.set(g.id, newGuildServer);
+            }
         }));
     }
-    catch (error) {
-        console.log('errored out');
-        console.log(error.message);
-    }
-    finally {
-        // always close the connection
-        mongoose.connection.close();
+    catch (err) {
+        console.log(err);
+        console.log('error onLaunch()');
     }
 }
 
 async function onJoinGuild(guild: discord.Guild) {
-    // open db connection
-    const mongoose = await mongoConnect();
-
     try {
-
-        let result = await DiscordGuild.findOne({ guildId: guild.id });
-        if (result === null) {
-            // create since it doesnt exist
-            result = await new DiscordGuild({
+        // just confirm we don't know about this guild
+        let guildData: any = await getGuild(guild.id);
+        if (guildData === undefined) {
+            const newGuild = {
                 guildId: guild.id,
                 guildName: guild.name
-            }).save();
+            }
+            guildData = await addGuild(newGuild);
+
+            // only create manager if we successfully added guild data to db
+            if (guildData !== undefined) {
+                const newGuildServer = new GuildServerManager(guild.id, bot);
+                await newGuildServer.initManagers();
+                managers.set(guild.id, newGuildServer);
+            }
         }
-
-        const newGuildServer = new GuildServerManager(result.guildId, bot);
-        await newGuildServer.initManagers();
-        managers.set(guild.id, newGuildServer);
-
     }
-    catch (error) {
-        console.log('errored out');
-        console.log(error.message);
-    }
-    finally {
-        // always close the connection
-        mongoose.connection.close();
+    catch (err) {
+        console.log(err);
+        console.log('error onJoinGuild()');
     }
 }
 
 async function onLeaveGuild(guild: discord.Guild) {
-       // open db connection
-       const mongoose = await mongoConnect();
-
-       try {
-           // find the entry that matches the guild we left
-           let result = await DiscordGuild.findOneAndDelete({ guildId: guild.id });
-           if (result === null) {
-               console.error('we should have found a guild in the database but did not');
-           }
-           managers.delete(guild.id);
-       }
-       catch (error) {
-           console.log('errored out');
-           console.log(error.message);
-       }
-       finally {
-           // always close the connection
-           mongoose.connection.close();
-       } 
+    try {
+        // remove guild data from db
+        let guildData: any = await removeGuild(guild.id);
+        if (guildData !== undefined) {
+            // tell manager to shut it down and delete documents from db
+            const manager = managers.get(guild.id);
+            if (manager !== undefined) {
+                await manager.remove();
+                managers.delete(guild.id);
+            }
+        }
+    }
+    catch (err) {
+        console.log(err);
+        console.log('error onLeaveGuild()');
+    }
 }
 
 // create new bot client

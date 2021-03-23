@@ -1,6 +1,6 @@
 import faunadb from 'faunadb';
 import config from '../data/config.json';
-import { GameServerMods, Mod } from '../models/data.types';
+import { Mod } from '../models/data.types';
 
 const q = faunadb.query;
 const client = new faunadb.Client({ secret: config.database.secret });
@@ -34,16 +34,16 @@ export async function removeGameMods(guildId: string, token: string) {
 }
 
 // add game mods document when a new game server document is created
-export async function addGameMods(newGameMods: GameServerMods) {
+export async function addGameMods(guildId: string, token: string) {
     try {
         return await client.query(
             q.Create(
                 q.Collection("mods"),
                 {
                     data: {
-                        guildId: newGameMods.guildId,
-                        token: newGameMods.token,
-                        mods: newGameMods.mods
+                        guildId: guildId,
+                        token: token,
+                        mods: []
                     }
                 }
             )

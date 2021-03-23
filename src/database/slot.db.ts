@@ -1,6 +1,6 @@
 import faunadb from 'faunadb';
 import config from '../data/config.json';
-import { GameServerSlots, Slot } from '../models/data.types';
+import { Slot } from '../models/data.types';
 
 const q = faunadb.query;
 const client = new faunadb.Client({ secret: config.database.secret });
@@ -35,16 +35,73 @@ export async function removeSlots(guildId: string, token: string) {
 }
 
 // we add slots document when a new game server document
-export async function addSlots(slotData: GameServerSlots) {
+export async function addSlots(guildId: string, token: string) {
+    const slots = [
+        {
+            "name": "empty",
+            "slotId": "slot1",
+            "utilized": false,
+            "mods": []
+        },
+        {
+            "name": "empty",
+            "slotId": "slot2",
+            "utilized": false,
+            "mods": []
+        },
+        {
+            "name": "empty",
+            "slotId": "slot3",
+            "utilized": false,
+            "mods": []
+        },
+        {
+            "name": "empty",
+            "slotId": "slot4",
+            "utilized": false,
+            "mods": []
+        },
+        {
+            "name": "empty",
+            "slotId": "slot5",
+            "utilized": false,
+            "mods": []
+        },
+        {
+            "name": "empty",
+            "slotId": "slot6",
+            "utilized": false,
+            "mods": []
+        },
+        {
+            "name": "empty",
+            "slotId": "slot7",
+            "utilized": false,
+            "mods": []
+        },
+        {
+            "name": "empty",
+            "slotId": "slot8",
+            "utilized": false,
+            "mods": []
+        },
+        {
+            "name": "empty",
+            "slotId": "slot9",
+            "utilized": false,
+            "mods": []
+        },
+    ]
+
     try {
         return await client.query(
             q.Create(
                 q.Collection("slots"),
                 {
                     data: {
-                        guildId: slotData.guildId,
-                        token: slotData.token,
-                        slots: slotData.slots
+                        guildId: guildId,
+                        token: token,
+                        slots: slots
                     }
                 }
             )
@@ -61,7 +118,7 @@ export async function addSlots(slotData: GameServerSlots) {
 export async function updateSlot(guildId: string, token: string, slotData: Slot) {
     try {
         const slots: any = await getSlots(guildId, token);
-        const slot: any = slots.data.slots.find((s:any) => s.slotId === slotData.slotId);
+        const slot: any = slots.data.slots.find((s: any) => s.slotId === slotData.slotId);
         slot.name = slotData.name;
         slot.utilized = slotData.utilized;
         slot.mods = slotData.mods;

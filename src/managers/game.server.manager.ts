@@ -1,9 +1,11 @@
 import { ModHandler } from '../handlers/mod.handler';
 import { SocketManager } from './socket.manager';
-import { DiscordMessageEmitter, DocumentEmitter, SocketEmitter } from '../handlers/emitters';
+import { DiscordMessageEmitter, SocketEmitter } from '../handlers/emitters';
 import { getCommandHelp, getAllCommandHelp } from '../helpers/command.list'
 import { login } from '../helpers/requests';
-import { getPopulatedGameServerData, updateGameServerMods } from '../helpers/mongo';
+import { removeGameServer } from '../database/game.server.db';
+import { removeSlots } from '../database/slot.db';
+import { removeGameMods } from '../database/mod.db';
 
 // mananges a single game server for guild
 export class GameServerManager {
@@ -21,7 +23,6 @@ export class GameServerManager {
     socketHandler: SocketManager;               // handles websocket connection between us and game server
     socketEmitter: SocketEmitter;               // needs to be created here since there will be a socket per GameServerManager
     discordEmitter: DiscordMessageEmitter;      // allows us to send discord messages
-    documentEmitter: DocumentEmitter;           // allows us to inform manager that document needs to be saved
 
 
     constructor(guildId: string, serverName: string, serverToken: string, discordEmitter: DiscordMessageEmitter) {
@@ -161,9 +162,12 @@ export class GameServerManager {
         }
     }
 
-    shutdown() {
-        // turn off socket... other things?
-        this.socketHandler.close();
+    async remove() {
+        const self = this;
+        self.socketHandler.close();
+        await removeGameServer(self.guildId, self.serverToken);
+        await removeSlots(self.guildId, self.serverToken);
+        await removeGameMods(self.guildId, self.serverToken);
     }
 
     listSlots(args: string[]): void {
@@ -320,56 +324,56 @@ export class GameServerManager {
     }
 
     async captureMods(json: any): Promise<void> {
-        const self = this;
-        if (json.mods.length === 0) {
-            return;
-        }
+        // const self = this;
+        // if (json.mods.length === 0) {
+        //     return;
+        // }
 
-        // get my db data
-        const gsmData = await getPopulatedGameServerData(self.guildId, self.serverToken);
-        if (gsmData === null) {
-            console.error('Could not find our game server manager data on the database');
-            return;
-        }
+        // // get my db data
+        // const gsmData = await getPopulatedGameServerData(self.guildId, self.serverToken);
+        // if (gsmData === null) {
+        //     console.error('Could not find our game server manager data on the database');
+        //     return;
+        // }
 
-        console.log('GSM DATA');
-        console.log(gsmData);
+        // console.log('GSM DATA');
+        // console.log(gsmData);
 
-        let newMods: {
-            modName: string,
-            modServerName: string,
-            modServerId: string,
-            version: string,
-            enabled: boolean
-        }[] = [];
+        // let newMods: {
+        //     modName: string,
+        //     modServerName: string,
+        //     modServerId: string,
+        //     version: string,
+        //     enabled: boolean
+        // }[] = [];
 
-        // compare
-        for (const mod of json.mods) {
-            const found = gsmData.serverMods.find(myMod => myMod.modServerName === mod.text);
-            if (found === undefined) {
-                // split by spaces, last space is the version
-                const split = (mod.text as string).trim().split(/ +/);
-                let version = split.pop();
-                let name = split.join(' ');
+        // // compare
+        // for (const mod of json.mods) {
+        //     const found = gsmData.serverMods.find(myMod => myMod.modServerName === mod.text);
+        //     if (found === undefined) {
+        //         // split by spaces, last space is the version
+        //         const split = (mod.text as string).trim().split(/ +/);
+        //         let version = split.pop();
+        //         let name = split.join(' ');
 
-                version = version === undefined ? '0' : version;
-                name = name === undefined ? '' : name;
+        //         version = version === undefined ? '0' : version;
+        //         name = name === undefined ? '' : name;
 
-                // add it to my list
-                newMods.push({
-                    modName: name,
-                    modServerName: mod.text,
-                    modServerId: mod.id,
-                    version: version,
-                    enabled: mod.enabled
-                });
-            }
-        }
+        //         // add it to my list
+        //         newMods.push({
+        //             modName: name,
+        //             modServerName: mod.text,
+        //             modServerId: mod.id,
+        //             version: version,
+        //             enabled: mod.enabled
+        //         });
+        //     }
+        // }
 
-        if (newMods.length !== 0) {
-            console.log(`updating mods of ${self.serverName}`);
-            updateGameServerMods(self.guildId, self.serverToken, newMods);
-        }
+        // if (newMods.length !== 0) {
+        //     console.log(`updating mods of ${self.serverName}`);
+        //     updateGameServerMods(self.guildId, self.serverToken, newMods);
+        // }
     }
 
     captureStarting(json: any): void {

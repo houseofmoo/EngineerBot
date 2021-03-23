@@ -1,7 +1,7 @@
 import discord from 'discord.js';
 import { EOL } from 'os';
 import { DiscordMessageEmitter } from '../handlers/emitters';
-import { IGameServer } from '../models/data.models';
+import { GameServer } from '../models/data.types';
 
 import config from '../data/config.json';
 
@@ -31,7 +31,7 @@ export class DiscordManager {
         this.gameServerChannels = [];
     }
 
-    async initDiscordManager(gameServers: IGameServer[]) {
+    async initDiscordManager(gameServers: GameServer[]) {
         const self = this;
 
         try {
@@ -43,7 +43,7 @@ export class DiscordManager {
 
             // create game server specific channels and associated webhook
             for (const server of gameServers) {
-                const newChannel = await self.createChannel(server.serverName, categoryChannel);
+                const newChannel = await self.createChannel(server.name, categoryChannel);
                 const newWebhook = await self.createWebhook(newChannel);
                 if (newChannel !== undefined && newWebhook !== undefined) {
                     self.gameServerChannels.push({
