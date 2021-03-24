@@ -438,8 +438,7 @@ export class GameServerManager {
         self.launchId = undefined; // should we place this here? makes sense since the shut downprocess has started
         self.discordEmitter.emit('sendGameServerMsg', self.serverName, `Server shutting down`);
     }
-//idjloOkxnJ1NX6csrnup7VuE
-//P98CCBPVdC1opxcDBj1syaJR
+    
     captureInfo(json: any): void {
         const self = this;
 
