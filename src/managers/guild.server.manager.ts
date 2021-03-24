@@ -148,7 +148,7 @@ export class GuildServerManager {
             return undefined;
         }
 
-        const server = this.gameServerManagers.find(r => r.serverName === channelName);
+        const server = this.gameServerManagers.find(r => r.serverName.toLowerCase() === channelName.toLowerCase());
         if (server === undefined) {
             this.discordEmitter.emit('sendManagementMsg', `Unknown server named ${channelName}`);
             return undefined

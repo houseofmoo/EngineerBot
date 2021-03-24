@@ -81,13 +81,13 @@ export class DiscordManager {
 
     sendToChannel(serverName: string, msg: string | discord.MessageEmbed): void {
         const self = this;
-        const channelInfo = self.gameServerChannels.find(chan => chan.channel.name === serverName);
+        const channelInfo = self.gameServerChannels.find(chan => chan.channel.name.toLowerCase() === serverName.toLowerCase());
         channelInfo?.channel.send(msg);
     }
 
     sendToChannelViaWebhook(serverName: string, msg: string | discord.MessageEmbed, username: string): void {
         const self = this;
-        const channelInfo = self.gameServerChannels.find(chan => chan.channel.name === serverName);
+        const channelInfo = self.gameServerChannels.find(chan => chan.channel.name.toLowerCase() === serverName.toLowerCase());
         channelInfo?.webhook.send(msg, { username: username });
     }
 
