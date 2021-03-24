@@ -9,7 +9,7 @@ async function onLaunch() {
         // build managers for each guild
         await Promise.all(bot.guilds.cache.map(async (g) => {
             // find guild in db
-            let guildData: any = await getGuild(g.id);
+            let guildData = await getGuild(g.id);
 
             // if unknown guild, create an entry
             if (guildData === undefined) {

@@ -7,30 +7,9 @@ const client = new faunadb.Client({ secret: config.database.secret });
 
 export async function getGameMods(guildId: string, token: string) {
     try {
-        const resp: any = await client.query(
+        return await client.query(
             q.Get(q.Match(q.Index("mods_by_guildId_and_token"), guildId, token))
         );
-
-        if (resp !== undefined) {
-            let modList: Mod[] = [];
-            for (const mod of resp.data.mods) {
-                modList.push({
-                    name: mod.name,
-                    version: mod.version,
-                    modId: mod.modId
-                });
-            }
-
-            const mods: GameServerMods = {
-                guildId: resp.data.guildId,
-                token: resp.data.token,
-                mods: modList
-            }
-
-            return mods;
-        }
-
-        return undefined;
     }
     catch (err) {
         console.log(err);
@@ -152,6 +131,29 @@ export async function removeGameMod(guildId: string, token: string, modName: str
     catch (err) {
         console.log(err);
         console.log('error while removing game mod');
+        return undefined;
+    }
+}
+
+export async function replaceGameMods(guildId: string, token: string, mods: GameServerMods) {
+    try {
+        const modList: any = await getGameMods(guildId, token);
+        return await client.query(
+            q.Update(
+                modList.ref,
+                {
+                    data: {
+                        guildId: mods.guildId,
+                        token: mods.token,
+                        mods: mods.mods
+                    }
+                }
+            )
+        )
+    }
+    catch (err) {
+        console.log(err);
+        console.log('error while replacing game mods document');
         return undefined;
     }
 }

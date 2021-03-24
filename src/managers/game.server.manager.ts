@@ -1,24 +1,25 @@
 import { ModHandler } from '../helpers/mod.handler';
 import { SocketManager } from './socket.manager';
 import { DiscordMessageEmitter } from '../emitters/discord.message.emitter';
-import { getCommandHelp, getAllCommandHelp } from '../helpers/command.list'
+import { getServerCommand, getServerCommands, getServerCommandHelp } from '../helpers/command.list'
 import { login } from '../helpers/requests';
 import { removeGameServer } from '../database/game.server.db';
-import { removeSlots } from '../database/slot.db';
-import { removeGameMods } from '../database/mod.db';
+import { addGameMods, getGameMods, replaceGameMods, removeGameMods } from '../database/mod.db';
+import { addSaves, getSaves, removeSaves, updateSaves } from '../database/saves.db';
+import { GameServerMods } from '../models/data.types';
 
 // mananges a single game server for guild
 export class GameServerManager {
     guildId: string;
     serverName: string;
     serverToken: string;
-    
+
     visitSecret: string | undefined;
     launchId: string | undefined;
     isStarting: boolean;
     isRunning: boolean;
     isOffline: boolean;
-    
+
     modHandler: ModHandler;                     // handle game server mod related tasks
     socketHandler: SocketManager;               // handles websocket connection between us and game server
     discordEmitter: DiscordMessageEmitter;      // allows us to send discord messages
@@ -34,7 +35,7 @@ export class GameServerManager {
         this.isStarting = false;
         this.isRunning = false;
         this.isOffline = true;
-        
+
         this.modHandler = new ModHandler();
         this.socketHandler = new SocketManager(this.serverToken);
         this.discordEmitter = discordEmitter;
@@ -92,16 +93,28 @@ export class GameServerManager {
 
     async handleCommand(commandId: string, args: string[]) {
         const self = this;
+
+        // confirm command and args are valid
+        const command = getServerCommand(commandId);
+        if (command === undefined) {
+            this.discordEmitter.emit('sendGameServerMsg', self.serverName, `I do not know how to do that: ${commandId}`);
+            return;
+        }
+        else if (command.argCount !== args.length) {
+            this.discordEmitter.emit('sendGameServerMsg', self.serverName, getServerCommandHelp(commandId));
+            return;
+        }
+
         switch (commandId) {
-            case 'server-slot-list':
+            case 'slot-list':
                 self.listSlots(args);
                 break;
 
-            case 'server-mod-install':
+            case 'mod-install':
                 self.installMod(args);
                 break;
 
-            case 'server-mod-delete':
+            case 'mod-delete':
                 self.deleteMod(args);
                 break;
 
@@ -109,20 +122,19 @@ export class GameServerManager {
                 self.listModOnServer(args);
                 break;
 
-            case 'server-mod-update':
+            case 'mod-update':
                 self.updateMod(args);
                 break;
 
-            case 'server-start':
+            case 'start':
                 self.serverStart(args)
                 break;
 
-            case 'server-stop':
+            case 'stop':
                 self.serverStop();
                 break;
 
             case 'msg':
-            case 'server-msg':
                 self.sendMessage(args);
                 break;
 
@@ -149,13 +161,14 @@ export class GameServerManager {
             case 'mod-deactivate':
                 self.deactivateMod(args);
 
-            case 'mod-list':
+            case 'slot-mod-list':
                 self.listModsBySlot(args);
                 break;
 
             case 'commands':
+            // TODO: send a list of command specific to server channels (commands we handle here)
             default:
-                this.discordEmitter.emit('sendGameServerMsg', self.serverName, getAllCommandHelp());
+                this.discordEmitter.emit('sendGameServerMsg', self.serverName, getServerCommands());
                 break;
         }
     }
@@ -164,31 +177,38 @@ export class GameServerManager {
         const self = this;
         self.socketHandler.close();
         await removeGameServer(self.guildId, self.serverToken);
-        await removeSlots(self.guildId, self.serverToken);
+        await removeSaves(self.guildId, self.serverToken);
         await removeGameMods(self.guildId, self.serverToken);
     }
 
     listSlots(args: string[]): void {
-        this.discordEmitter.emit('sendManagementMsg', 'listing slots');
+        const self = this;
+        this.discordEmitter.emit('sendGameServerMsg', self.serverName, 'listing slots');
     }
 
     installMod(args: string[]): void {
-        this.discordEmitter.emit('sendManagementMsg', 'installing mod');
+        const self = this;
+        this.discordEmitter.emit('sendGameServerMsg', self.serverName, 'installing mod');
     }
 
     deleteMod(args: string[]): void {
-        this.discordEmitter.emit('sendManagementMsg', 'deleting mod');
+        const self = this;
+        this.discordEmitter.emit('sendGameServerMsg', self.serverName, 'deleting mod');
     }
 
     listModOnServer(args: string[]): void {
-        this.discordEmitter.emit('sendManagementMsg', 'listing mods');
+        const self = this;
+        this.discordEmitter.emit('sendGameServerMsg', self.serverName, 'listing mods');
     }
 
     updateMod(args: string[]): void {
-        this.discordEmitter.emit('sendManagementMsg', 'updating mod');
+        const self = this;
+        this.discordEmitter.emit('sendGameServerMsg', self.serverName, 'updating mod');
     }
 
     serverStart(args: string[]): void {
+        const self = this;
+        this.discordEmitter.emit('sendGameServerMsg', self.serverName, 'starting server');
         // const self = this;
 
         // // check valid slot name
@@ -218,37 +238,41 @@ export class GameServerManager {
     }
 
     serverStop(): void {
-
+        const self = this;
+        this.discordEmitter.emit('sendGameServerMsg', self.serverName, 'stopping server');
     }
 
     sendMessage(args: string[]): void {
-
+        const self = this;
+        this.discordEmitter.emit('sendGameServerMsg', self.serverName, 'sending message to server');
     }
 
     promote(args: string[]): void {
-
+        const self = this;
+        this.discordEmitter.emit('sendGameServerMsg', self.serverName, 'promoting user');
     }
 
     addPromote(args: string[]): void {
-
+        const self = this;
+        this.discordEmitter.emit('sendGameServerMsg', self.serverName, 'adding user to promote list');
     }
 
     removePromote(args: string[]): void {
-
+        const self = this;
+        this.discordEmitter.emit('sendGameServerMsg', self.serverName, 'removing user from promote list');
     }
 
     promoteList(args: string[]): void {
-
+        const self = this;
+        this.discordEmitter.emit('sendGameServerMsg', self.serverName, 'print promote list');
     }
 
     activateMod(args: string[]): void {
         const self = this;
+        this.discordEmitter.emit('sendGameServerMsg', self.serverName, 'activating mod');
 
-        // serverName, slotName, modName
-        if (args.length !== 3) {
-            self.discordEmitter.emit('sendManagementMsg', getCommandHelp('mod-activate'));
-            return;
-        }
+        // slotName, modName
+
 
         // get the slot info from server
 
@@ -258,15 +282,17 @@ export class GameServerManager {
 
         // if slot didnt contain mod, do nothing but inform the guild
 
-        
+
     }
 
     deactivateMod(args: string[]): void {
-
+        const self = this;
+        this.discordEmitter.emit('sendGameServerMsg', self.serverName, 'deactivating mod');
     }
 
     listModsBySlot(args: string[]): void {
-
+        const self = this;
+        this.discordEmitter.emit('sendGameServerMsg', self.serverName, 'listing mods by slot');
     }
 
     captureConnected() {
@@ -299,7 +325,7 @@ export class GameServerManager {
         // or we check if the websocket it alive before a command is issue
     }
 
-    async captureVisit(json: any): Promise<void> {
+    async captureVisit(json: any) {
         const self = this;
         console.log('captured visit');
         self.visitSecret = json.secret;
@@ -308,70 +334,96 @@ export class GameServerManager {
         }
     }
 
-    captureOptions(json: any): void {
-        // json.name === regions
-        // json.name === versions
-        // json.name === saves
+    async captureOptions(json: any) {
+        const self = this;
+   
+        switch (json.name) {
+            case 'saves':
+                // confirm document exists, if it doesnt create it
+                const saves = await getSaves(self.guildId, self.serverToken);
+                if (saves === undefined) {
+                    await addSaves(self.guildId, self.serverToken);
+                }
 
-        //
+                // update document
+                await updateSaves(self.guildId, self.serverToken, {
+                    guildId: self.guildId,
+                    token: self.serverToken,
+                    slot1: json.options.slot1,
+                    slot2: json.options.slot2,
+                    slot3: json.options.slot3,
+                    slot4: json.options.slot4,
+                    slot5: json.options.slot5,
+                    slot6: json.options.slot6,
+                    slot7: json.options.slot7,
+                    slot8: json.options.slot8,
+                    slot9: json.options.slot9,
+                });
+                break;
+
+            case 'regions':
+                console.log('capture regions');
+                break;
+
+            case 'versions':
+                console.log('capture versions');
+                break;
+        }
     }
 
-    captureSlot(json: any): void {
-        //console.log(`captured slot:`);
-        //console.log(json);
+    async captureSlot(json: any) {
+        // this happens too fast, we cannot use it to access db
     }
 
-    async captureMods(json: any): Promise<void> {
-        // const self = this;
-        // if (json.mods.length === 0) {
-        //     return;
-        // }
+    async captureMods(json: any) {
+        const self = this;
 
-        // // get my db data
-        // const gsmData = await getPopulatedGameServerData(self.guildId, self.serverToken);
-        // if (gsmData === null) {
-        //     console.error('Could not find our game server manager data on the database');
-        //     return;
-        // }
+        // confirm mods document exists
+        const serverMods: any = await getGameMods(self.guildId, self.serverToken);
+        if (serverMods === undefined) {
+            await addGameMods(self.guildId, self.serverToken);
+        }
 
-        // console.log('GSM DATA');
-        // console.log(gsmData);
 
-        // let newMods: {
-        //     modName: string,
-        //     modServerName: string,
-        //     modServerId: string,
-        //     version: string,
-        //     enabled: boolean
-        // }[] = [];
+        // replace game mods document with the game mods we receive here
+        const updatedModsList: GameServerMods = {
+            guildId: self.guildId,
+            token: self.serverToken,
+            mods: []
+        }
 
-        // // compare
-        // for (const mod of json.mods) {
-        //     const found = gsmData.serverMods.find(myMod => myMod.modServerName === mod.text);
-        //     if (found === undefined) {
-        //         // split by spaces, last space is the version
-        //         const split = (mod.text as string).trim().split(/ +/);
-        //         let version = split.pop();
-        //         let name = split.join(' ');
+        // get the list of mods if they exist on server. if not create them
+        // then we need to check if the mod exists, if it does use the activeOn for the update
+        // if it doesnt, active on all slots
 
-        //         version = version === undefined ? '0' : version;
-        //         name = name === undefined ? '' : name;
+        for (const mod of json.mods) {
+            const split = (mod.text as string).trim().split(/ +/);
+            let modVersion = split.pop();
+            let modName = split.join(' ');
+            
+            const found = serverMods.data.mods.find((m:any) => m.name === modName);
+            if (found === undefined) {
+                // mod we dont know about
+                updatedModsList.mods.push({
+                    name: modName === undefined ? 'UnknownName' : modName,
+                    version: modVersion === undefined ? '0' : modVersion,
+                    modId: mod.id,
+                    activeOn: ["slot1", "slot2", "slot3", "slot4", "slot5", "slot6", "slot7", "slot8", "slot9"]
+                });
+            }
+            else {
+                // mod we know about
+                updatedModsList.mods.push({
+                    name: modName === undefined ? 'UnknownName' : modName,
+                    version: modVersion === undefined ? '0' : modVersion,
+                    modId: mod.id,
+                    activeOn: found.activeOn
+                });
+            }
 
-        //         // add it to my list
-        //         newMods.push({
-        //             modName: name,
-        //             modServerName: mod.text,
-        //             modServerId: mod.id,
-        //             version: version,
-        //             enabled: mod.enabled
-        //         });
-        //     }
-        // }
-
-        // if (newMods.length !== 0) {
-        //     console.log(`updating mods of ${self.serverName}`);
-        //     updateGameServerMods(self.guildId, self.serverToken, newMods);
-        // }
+        }
+        // update document
+        await replaceGameMods(self.guildId, self.serverToken, serverMods);
     }
 
     captureStarting(json: any): void {
@@ -425,23 +477,5 @@ export class GameServerManager {
 
     captureIdle(json: any): void {
 
-    }
-
-    async saveDocument() {
-        // const self = this;
-
-        // // connect to db
-        // const mongoose = await mongoConnect();
-
-        // try {
-        //     const result = await self.serverData.save();
-        // }
-        // catch (error) {
-        //     console.log(error);
-        //     this.discordEmitter.emit('sendManagementMsg', 'Error: could not connect to database');
-        // }
-        // finally {
-        //     mongoose.connection.close();
-        // }
     }
 }

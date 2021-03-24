@@ -1,15 +1,14 @@
 import discord from 'discord.js'
 import websocket from 'websocket';
 import { EOL } from 'os';
-import { getCommandHelp, getAllCommandHelp } from '../helpers/command.list';
+import { getGuildCommandHelp, getGuildCommands, GetGuildCommand } from '../helpers/command.list';
 import { DiscordManager } from './discord.manager';
 import { GameServerManager } from './game.server.manager';
 import { DiscordMessageEmitter } from '../emitters/discord.message.emitter';
 import { login } from '../helpers/requests';
 import { getGameServers, addGameServer, removeGameServer } from '../database/game.server.db';
 import { addGameMods } from '../database/mod.db';
-import { addSlots } from '../database/slot.db';
-import { GameServer } from '../models/data.types';
+import { addSaves } from '../database/saves.db';
 import config from '../data/config.json';
 import urls from '../data/api.urls.json';
 
@@ -35,18 +34,18 @@ export class GuildServerManager {
         const self = this;
 
         // get serverList
-        const serverList = await getGameServers(self.guildId);
+        const serverList:any = await getGameServers(self.guildId);
         if (serverList === undefined) {
+            // TODO: how to handle this?
             return;
         }
 
         // only called on first start up
-        await self.discordManager.initDiscordManager(serverList);
+        await self.discordManager.initDiscordManager(serverList.data);
 
         // init a game server manager for each server this guild has
-        for (const server of serverList) {
-            console.log(server);
-            const gsm = new GameServerManager(self.guildId, server.name, server.token, self.discordEmitter);
+        for (const server of serverList.data) {
+            const gsm = new GameServerManager(self.guildId, server.data.name, server.data.token, self.discordEmitter);
             self.gameServerManagers.push(gsm);
         }
 
@@ -68,6 +67,17 @@ export class GuildServerManager {
 
         // is this a management message
         if (self.discordManager.isManagementChannel(message)) {
+            // confirm command and args are valid
+            const command = GetGuildCommand(commandId);
+            if (command === undefined) {
+                this.discordEmitter.emit('sendManagementMsg', `I do not know how to do that: ${commandId}`);
+                return;
+            }
+            else if (command.argCount !== args.length) {
+                this.discordEmitter.emit('sendManagementMsg', getGuildCommandHelp(commandId));
+                return;
+            }
+            
             self.handleCommand(commandId, args);
         }
 
@@ -102,8 +112,9 @@ export class GuildServerManager {
                 break;
 
             case 'commands':
+                // TODO: send a list of commands specific to the management channel (meaning commands we handle here)
             default:
-                this.discordEmitter.emit('sendManagementMsg', getAllCommandHelp());
+                this.discordEmitter.emit('sendManagementMsg', getGuildCommands());
                 break;
 
         }
@@ -202,12 +213,11 @@ export class GuildServerManager {
         // token is invalid
         if (response.status !== 200) {
             self.discordEmitter.emit('sendManagementMsg', `${token} is an invalid token. !server-create can create a server for you`);
-        }
-        // token was valid or we were provided with a new token
-        else {
-            self.createGameServerManager(serverName, response.data.userToken);
+            return;
         }
 
+        // token was valid or we were provided with a new token
+        self.createGameServerManager(serverName, response.data.userToken);
     }
 
     // add new server data to db and create game server manager
@@ -215,19 +225,18 @@ export class GuildServerManager {
         const self = this;
 
         // add data to database
-        const serverData: GameServer = {
+        const serverResult = await addGameServer({
             guildId: self.guildId,
             name: serverName,
             token: token,
             region: 'us-west',
             version: '1.1.27',
             admins: []
-        }
-        const serverResult = await addGameServer(serverData);
+        });
         const modResult = await addGameMods(self.guildId, token);
-        const slotResult = await addSlots(self.guildId, token);
+        const savesResult = await addSaves(self.guildId, token);
 
-        // create a server manager and check if token is good
+        // create a server manager
         const gsm = new GameServerManager(self.guildId, serverName, token, self.discordEmitter);
         self.gameServerManagers.push(gsm);
 
@@ -239,11 +248,6 @@ export class GuildServerManager {
     }
 
     async createGameServer(args: string[]): Promise<void> {
-        if (args === undefined || args.length !== 1) {
-            this.discordEmitter.emit('sendManagementMsg', getCommandHelp('server-create'));
-            return;
-        }
-
         const serverName = args[0];
 
         // check values are good
@@ -257,22 +261,19 @@ export class GuildServerManager {
     }
 
     async addGameServer(args: string[]): Promise<void> {
-        if (args === undefined || args.length !== 2) {
-            this.discordEmitter.emit('sendManagementMsg', getCommandHelp('server-add'));
-            return;
-        }
+        const self = this;
 
         const serverName = args[0];
         const serverToken = args[1];
 
         // check values are good
-        if (this.isKnownServerName(serverName)) {
-            this.discordEmitter.emit('sendManagementMsg', `${serverName} already in use`)
+        if (self.isKnownServerName(serverName)) {
+            self.discordEmitter.emit('sendManagementMsg', `${serverName} already in use`)
             return;
         }
 
-        if (this.isKnownToken(serverToken)) {
-            this.discordEmitter.emit('sendManagementMsg', `${serverToken} already in use`);
+        if (self.isKnownToken(serverToken)) {
+            self.discordEmitter.emit('sendManagementMsg', `${serverToken} already in use`);
             return;
         }
 
@@ -282,11 +283,6 @@ export class GuildServerManager {
 
     async removeGameServer(args: string[]): Promise<void> {
         const self = this;
-
-        if (args === undefined || args.length !== 1) {
-            self.discordEmitter.emit('sendManagementMsg', getCommandHelp('server-remove'));
-            return;
-        }
 
         // get server name from arguments
         const serverName = args[0];
@@ -322,13 +318,6 @@ export class GuildServerManager {
 
     listServers(args: string[]): void {
         const self = this;
-
-        if (args.length === 1) {
-            if (args[0] === 'help' || args[0] === '-h') {
-                self.discordEmitter.emit('sendManagementMsg', getCommandHelp('server-list'));
-                return;
-            }
-        }
 
         let list = '';
         for (const server of self.gameServerManagers) {

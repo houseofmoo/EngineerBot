@@ -31,7 +31,7 @@ export class DiscordManager {
         this.gameServerChannels = [];
     }
 
-    async initDiscordManager(gameServers: GameServer[]) {
+    async initDiscordManager(gameServers: any) {
         const self = this;
 
         try {
@@ -43,7 +43,7 @@ export class DiscordManager {
 
             // create game server specific channels and associated webhook
             for (const server of gameServers) {
-                const newChannel = await self.createChannel(server.name, categoryChannel);
+                const newChannel = await self.createChannel(server.data.name.toLowerCase(), categoryChannel);
                 const newWebhook = await self.createWebhook(newChannel);
                 if (newChannel !== undefined && newWebhook !== undefined) {
                     self.gameServerChannels.push({
@@ -155,21 +155,6 @@ export class DiscordManager {
         this.sendToManagementChannel(response);
     }
 
-    // send information about how a command is expected
-    sendCommandUsage(command: any) {
-        // get list of commands
-        if (command !== undefined) {
-            // get specific command
-            let response = '```';
-            response += `${command.description}` + EOL + EOL;
-            response += `example usage: ${command.format}` + EOL;
-            response += "```";
-
-            // send
-            this.sendToManagementChannel(response);
-        }
-    }
-
     // adds a new channel for new game servers
     async addNewChannel(channelName: string) {
         const self = this;
@@ -260,7 +245,6 @@ export class DiscordManager {
     // adds channels to factorio server catefory if it does not exist
     private async createChannel(channelName: string, categoryChannel: discord.CategoryChannel | undefined): Promise<discord.TextChannel | undefined> {
         const self = this;
-
         try {
             // if guild exists...which it should
             if (self.guild !== undefined) {
