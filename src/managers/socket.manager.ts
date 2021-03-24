@@ -1,17 +1,17 @@
 import websocket from 'websocket';
-import { SocketEmitter } from '../handlers/emitters';
+import { SocketEventEmitter } from '../emitters/socket.event.emitter';
 import urls from '../data/api.urls.json';
 
 export class SocketManager {
     serverToken: string;
-    socketEmitter: SocketEmitter;
+    socketEmitter: SocketEventEmitter;
     socket: websocket.client;
     isConnected: boolean;
     connection: websocket.connection | undefined;
 
-    constructor(serverToken: string, socketEmitter: SocketEmitter) {
+    constructor(serverToken: string) {
         this.serverToken = serverToken;
-        this.socketEmitter = socketEmitter;
+        this.socketEmitter = new SocketEventEmitter();
         this.socket = new websocket.client();
         this.isConnected = false;
         this.connection = undefined;

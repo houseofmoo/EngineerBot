@@ -7,12 +7,30 @@ const client = new faunadb.Client({ secret: config.database.secret });
 
 export async function getGameServers(guildId: string) {
     try {
-        return await client.query(
+        const resp: any = await client.query(
             q.Map(
                 q.Paginate(q.Match(q.Index("game_servers_by_guildId"), guildId)),
                 q.Lambda("gameServerRef", q.Get(q.Var("gameServerRef")))
             )
         );
+
+        // convert to DiscordGuild type
+        if (resp !== undefined) {
+            let serverList: GameServer[] = [];
+            for (const serverData of resp.data) {
+                serverList.push({
+                    guildId: serverData.data.guildId,
+                    name: serverData.data.name,
+                    token: serverData.data.token,
+                    region: serverData.data.region,
+                    version: serverData.data.version,
+                    admins: serverData.data.admins
+                });
+            }
+            return serverList;
+        }
+
+        return undefined
     }
     catch (err) {
         console.log(err);
@@ -23,9 +41,24 @@ export async function getGameServers(guildId: string) {
 
 export async function getGameServer(guildId: string, token: string) {
     try {
-        return await client.query(
+        const resp: any = await client.query(
             q.Get(q.Match(q.Index("game_server_by_guildId_and_token"), guildId, token))
         );
+
+        if (resp !== undefined) {
+            const server: GameServer = {
+                guildId: resp.data.guildId,
+                name: resp.data.name,
+                token: resp.data.token,
+                region: resp.data.region,
+                version: resp.data.version,
+                admins: resp.data.admins
+            }
+
+            return server;
+        }
+
+        return undefined;
     }
     catch (err) {
         console.log(err);

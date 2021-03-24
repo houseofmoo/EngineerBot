@@ -1,6 +1,6 @@
-import { ModHandler } from '../handlers/mod.handler';
+import { ModHandler } from '../helpers/mod.handler';
 import { SocketManager } from './socket.manager';
-import { DiscordMessageEmitter, SocketEmitter } from '../handlers/emitters';
+import { DiscordMessageEmitter } from '../emitters/discord.message.emitter';
 import { getCommandHelp, getAllCommandHelp } from '../helpers/command.list'
 import { login } from '../helpers/requests';
 import { removeGameServer } from '../database/game.server.db';
@@ -21,7 +21,6 @@ export class GameServerManager {
     
     modHandler: ModHandler;                     // handle game server mod related tasks
     socketHandler: SocketManager;               // handles websocket connection between us and game server
-    socketEmitter: SocketEmitter;               // needs to be created here since there will be a socket per GameServerManager
     discordEmitter: DiscordMessageEmitter;      // allows us to send discord messages
 
 
@@ -37,8 +36,7 @@ export class GameServerManager {
         this.isOffline = true;
         
         this.modHandler = new ModHandler();
-        this.socketEmitter = new SocketEmitter();
-        this.socketHandler = new SocketManager(this.serverToken, this.socketEmitter);
+        this.socketHandler = new SocketManager(this.serverToken);
         this.discordEmitter = discordEmitter;
 
         this.addListeners();
@@ -47,49 +45,49 @@ export class GameServerManager {
 
     addListeners() {
         this.captureConnected = this.captureConnected.bind(this);
-        this.socketEmitter.addListener('websocketConnected', this.captureConnected);
+        this.socketHandler.socketEmitter.addListener('websocketConnected', this.captureConnected);
 
         this.captureConnectionFail = this.captureConnectionFail.bind(this);
-        this.socketEmitter.addListener('websocketConnectionFail', this.captureConnectionFail);
+        this.socketHandler.socketEmitter.addListener('websocketConnectionFail', this.captureConnectionFail);
 
         this.captureError = this.captureError.bind(this);
-        this.socketEmitter.addListener('websocketError', this.captureError);
+        this.socketHandler.socketEmitter.addListener('websocketError', this.captureError);
 
         this.captureClose = this.captureClose.bind(this);
-        this.socketEmitter.addListener('websocketClose', this.captureClose);
+        this.socketHandler.socketEmitter.addListener('websocketClose', this.captureClose);
 
         this.captureVisit = this.captureVisit.bind(this);
-        this.socketEmitter.addListener('receivedVisit', this.captureVisit);
+        this.socketHandler.socketEmitter.addListener('receivedVisit', this.captureVisit);
 
         this.captureOptions = this.captureOptions.bind(this);
-        this.socketEmitter.addListener('receivedOptions', this.captureOptions);
+        this.socketHandler.socketEmitter.addListener('receivedOptions', this.captureOptions);
 
         this.captureSlot = this.captureSlot.bind(this);
-        this.socketEmitter.addListener('receivedSlot', this.captureSlot);
+        this.socketHandler.socketEmitter.addListener('receivedSlot', this.captureSlot);
 
         this.captureMods = this.captureMods.bind(this);
-        this.socketEmitter.addListener('receivedMods', this.captureMods);
+        this.socketHandler.socketEmitter.addListener('receivedMods', this.captureMods);
 
         this.captureStarting = this.captureStarting.bind(this);
-        this.socketEmitter.addListener('receivedStarting', this.captureStarting);
+        this.socketHandler.socketEmitter.addListener('receivedStarting', this.captureStarting);
 
         this.captureRunning = this.captureRunning.bind(this);
-        this.socketEmitter.addListener('receivedRunning', this.captureRunning);
+        this.socketHandler.socketEmitter.addListener('receivedRunning', this.captureRunning);
 
         this.captureStopping = this.captureStopping.bind(this);
-        this.socketEmitter.addListener('receivedStopping', this.captureStopping);
+        this.socketHandler.socketEmitter.addListener('receivedStopping', this.captureStopping);
 
         this.captureInfo = this.captureInfo.bind(this);
-        this.socketEmitter.addListener('receivedInfo', this.captureInfo);
+        this.socketHandler.socketEmitter.addListener('receivedInfo', this.captureInfo);
 
         this.captureLog = this.captureLog.bind(this);
-        this.socketEmitter.addListener('receivedLog', this.captureLog);
+        this.socketHandler.socketEmitter.addListener('receivedLog', this.captureLog);
 
         this.captureConsole = this.captureConsole.bind(this);
-        this.socketEmitter.addListener('receivedConsole', this.captureConsole);
+        this.socketHandler.socketEmitter.addListener('receivedConsole', this.captureConsole);
 
         this.captureIdle = this.captureIdle.bind(this);
-        this.socketEmitter.addListener('receivedIdle', this.captureIdle);
+        this.socketHandler.socketEmitter.addListener('receivedIdle', this.captureIdle);
     }
 
     async handleCommand(commandId: string, args: string[]) {

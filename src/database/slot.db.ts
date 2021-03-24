@@ -1,6 +1,6 @@
 import faunadb from 'faunadb';
 import config from '../data/config.json';
-import { Slot } from '../models/data.types';
+import { Slot, GameServerSlots } from '../models/data.types';
 
 const q = faunadb.query;
 const client = new faunadb.Client({ secret: config.database.secret });
@@ -8,9 +8,31 @@ const client = new faunadb.Client({ secret: config.database.secret });
 // return a list of slots associated with a game server
 export async function getSlots(guildId: string, token: string) {
     try {
-        return await client.query(
+        const resp: any =  await client.query(
             q.Get(q.Match(q.Index("slots_by_guildId_and_token"), guildId, token))
         );
+
+        if (resp !== undefined) {
+            const slotList: Slot[] = [];
+            for (const slot of resp.data.slots) {
+                slotList.push({
+                    name: slot.name,
+                    slotId: slot.slotId,
+                    utilized: slot.utilized,
+                    mods: slot.mods
+                })
+            }
+
+            const slots: GameServerSlots = {
+                guildId: resp.data.guildId,
+                token: resp.data.token,
+                slots: slotList
+            }
+
+            return slots;
+        }
+
+        return undefined;
     }
     catch (err) {
         console.log(err);

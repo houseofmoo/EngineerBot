@@ -1,6 +1,6 @@
 import discord from 'discord.js';
 import { EOL } from 'os';
-import { DiscordMessageEmitter } from '../handlers/emitters';
+import { DiscordMessageEmitter } from '../emitters/discord.message.emitter';
 import { GameServer } from '../models/data.types';
 
 import config from '../data/config.json';

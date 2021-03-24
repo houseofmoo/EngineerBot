@@ -4,12 +4,12 @@ import { EOL } from 'os';
 import { getCommandHelp, getAllCommandHelp } from '../helpers/command.list';
 import { DiscordManager } from './discord.manager';
 import { GameServerManager } from './game.server.manager';
-import { DiscordMessageEmitter } from '../handlers/emitters';
+import { DiscordMessageEmitter } from '../emitters/discord.message.emitter';
 import { login } from '../helpers/requests';
 import { getGameServers, addGameServer, removeGameServer } from '../database/game.server.db';
 import { addGameMods } from '../database/mod.db';
 import { addSlots } from '../database/slot.db';
-import { GameServer, GameServerMods, GameServerSlots } from '../models/data.types';
+import { GameServer } from '../models/data.types';
 import config from '../data/config.json';
 import urls from '../data/api.urls.json';
 
@@ -35,16 +35,16 @@ export class GuildServerManager {
         const self = this;
 
         // get serverList
-        const serverList: any = await getGameServers(self.guildId);
+        const serverList = await getGameServers(self.guildId);
         if (serverList === undefined) {
             return;
         }
 
         // only called on first start up
-        await self.discordManager.initDiscordManager(serverList.data);
+        await self.discordManager.initDiscordManager(serverList);
 
         // init a game server manager for each server this guild has
-        for (const server of serverList.data) {
+        for (const server of serverList) {
             console.log(server);
             const gsm = new GameServerManager(self.guildId, server.name, server.token, self.discordEmitter);
             self.gameServerManagers.push(gsm);
@@ -100,7 +100,6 @@ export class GuildServerManager {
             case 'cheats':
                 this.listCheats(args);
                 break;
-
 
             case 'commands':
             default:
@@ -305,23 +304,15 @@ export class GuildServerManager {
         // remove manager from list and save document
         const result = await removeGameServer(self.guildId, serverToken);
         if (result !== undefined) {
+            // tell server we're done
+            server.remove();
 
-            // remove game server manager
-            if (server !== undefined) {
-                // tell server we're done
-                server.remove();
+            // remove manager from managers list
+            const serverIndex = self.gameServerManagers.indexOf(server);
+            self.gameServerManagers.splice(serverIndex, 1);
 
-                // remove manager from managers list
-                const serverIndex = self.gameServerManagers.indexOf(server);
-                self.gameServerManagers.splice(serverIndex, 1);
-
-                self.discordManager.removeChannel(serverName);
-                self.discordEmitter.emit('sendManagementMsg', `${serverName} using ${serverToken} removed from server list`);
-            }
-            else {
-                self.discordEmitter.emit('sendManagementMsg', `Could not find server named ${serverName} in managed channel list`);
-                return;
-            }
+            self.discordManager.removeChannel(serverName);
+            self.discordEmitter.emit('sendManagementMsg', `${serverName} using ${serverToken} removed from server list`);
         }
         else {
             console.error(result);

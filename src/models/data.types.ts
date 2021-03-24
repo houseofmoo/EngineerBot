@@ -15,13 +15,13 @@ export type GameServer = {
 export type GameServerSlots = {
     guildId: string;
     token: string;
-    slots: Slot[];  // 9 is number of slots. always.
+    slots: Slot[];      // 9 is always number of slots available to a game server
 }
 
 export type Slot = {
     name: string;
     slotId: string;
-    utilized: boolean;  // does this slot contain a saved game
+    utilized: boolean;  // does this slot contain a saved game?
     mods: string[]      // list of mods enabled for this slot
 }
 

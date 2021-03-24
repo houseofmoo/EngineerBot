@@ -8,12 +8,27 @@ const client = new faunadb.Client({ secret: config.database.secret });
 
 export async function getGuildList() {
     try {
-        return await client.query(
+        const resp: any = await client.query(
             q.Map(
                 q.Paginate(q.Match(q.Index("all_discord_guilds"))),
                 q.Lambda("guildRef", q.Get(q.Var("guildRef")))
             )
         );
+
+        // convert to DiscordGuild type
+        if (resp !== undefined) {
+            let guildList: DiscordGuild[] = [];
+            for (const guildData of resp.data) {
+                guildList.push({
+                    guildId: guildData.data.guildId,
+                    guildName: guildData.data.guildName
+                });
+            }
+
+            return guildList;
+        }
+
+        return undefined;
     }
     catch (err) {
         console.log(err);
@@ -24,9 +39,20 @@ export async function getGuildList() {
 
 export async function getGuild(guildId: string) {
     try {
-        return await client.query(
+        const resp: any = await client.query(
             q.Get(q.Match(q.Index("discord_guild_by_guildId"), guildId))
         );
+
+        if (resp !== undefined) {
+            const guild: DiscordGuild = {
+                guildId: resp.data.guildId,
+                guildName: resp.data.guildName
+            }
+
+            return guild;
+        }
+
+        return undefined;
     }
     catch (err) {
         console.log(err);
@@ -63,7 +89,7 @@ export async function addGuild(newGuild: DiscordGuild) {
                 }
             )
         );
-    } 
+    }
     catch (err) {
         console.log(err);
         console.log('error while adding a guild to db');

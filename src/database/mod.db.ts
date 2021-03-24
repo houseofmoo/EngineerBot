@@ -1,15 +1,36 @@
 import faunadb from 'faunadb';
 import config from '../data/config.json';
-import { Mod } from '../models/data.types';
+import { GameServerMods, Mod } from '../models/data.types';
 
 const q = faunadb.query;
 const client = new faunadb.Client({ secret: config.database.secret });
 
 export async function getGameMods(guildId: string, token: string) {
     try {
-        return await client.query(
+        const resp: any = await client.query(
             q.Get(q.Match(q.Index("mods_by_guildId_and_token"), guildId, token))
         );
+
+        if (resp !== undefined) {
+            let modList: Mod[] = [];
+            for (const mod of resp.data.mods) {
+                modList.push({
+                    name: mod.name,
+                    version: mod.version,
+                    modId: mod.modId
+                });
+            }
+
+            const mods: GameServerMods = {
+                guildId: resp.data.guildId,
+                token: resp.data.token,
+                mods: modList
+            }
+
+            return mods;
+        }
+
+        return undefined;
     }
     catch (err) {
         console.log(err);

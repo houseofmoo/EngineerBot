@@ -1,9 +1,7 @@
 import discord from 'discord.js';
-//import { mongoConnect } from './helpers/mongo';
-import { GuildServerManager } from './managers/guild.server.manager';
-//import { DiscordGuild } from './models/data.models';
-import config from './data/config.json';
 import { getGuild, addGuild, removeGuild } from './database/guild.db';
+import { GuildServerManager } from './managers/guild.server.manager';
+import config from './data/config.json';
 
 
 async function onLaunch() {
@@ -65,7 +63,7 @@ async function onJoinGuild(guild: discord.Guild) {
 async function onLeaveGuild(guild: discord.Guild) {
     try {
         // remove guild data from db
-        let guildData: any = await removeGuild(guild.id);
+        let guildData = await removeGuild(guild.id);
         if (guildData !== undefined) {
             // tell manager to shut it down and delete documents from db
             const manager = managers.get(guild.id);
