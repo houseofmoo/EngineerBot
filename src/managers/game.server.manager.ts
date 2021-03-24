@@ -2,7 +2,7 @@ import { ModHandler } from '../helpers/mod.handler';
 import { SocketManager } from './socket.manager';
 import { DiscordMessageEmitter } from '../emitters/discord.message.emitter';
 import { getServerCommand, getServerCommands, getServerCommandHelp } from '../helpers/command.list'
-import { login } from '../helpers/requests';
+import { login, startServer, stopServer } from '../helpers/requests';
 import { removeGameServer } from '../database/game.server.db';
 import { addGameMods, getGameMods, replaceGameMods, removeGameMods } from '../database/mod.db';
 import { addSaves, getSaves, removeSaves, updateSaves } from '../database/saves.db';
@@ -206,40 +206,37 @@ export class GameServerManager {
         this.discordEmitter.emit('sendGameServerMsg', self.serverName, 'updating mod');
     }
 
-    serverStart(args: string[]): void {
+    async serverStart(args: string[]) {
         const self = this;
-        this.discordEmitter.emit('sendGameServerMsg', self.serverName, 'starting server');
-        // const self = this;
 
-        // // check valid slot name
-        // if (args === undefined || args.length != 2) {
-        //     self.discordEmitter.emit('sendManagementMsg', getCommandHelp('server-start'));
-        //     return;
-        // }
-
-        // // confirm connected to socket
-        // if (self.visitSecret === undefined) {
-        //     self.discordEmitter.emit('sendManagementMsg', 'Disconnected from game servers, reconnecting. try command again in a few moments');
-        //     this.socketHandler.reconnect();
-        //     return;
-        // }
-
-        // const serverName = args[0];
-        // const slotName = args[1];
-
-        // const slotData = self.serverData.serverSlots.find(s => s.slotName === slotName);
-        // if (slotData !== undefined) {
-
-        // }
-
-        // // check if we have a visit secret
-        // // send server start
-        // // reply with response
+        // TODO: confirm server is not already online
+        const slotName = args[0];
+        if (!["slot1", "slot2", "slot3", "slot4", "slot5", "slot6", "slot7", "slot8", "slot9"].includes(args[0])) {
+            this.discordEmitter.emit('sendGameServerMsg', self.serverName, `${args[0]} is not a valid slot`);
+            return;
+        }
+        
+        // confirm connected to socket
+        if (self.visitSecret === undefined) {
+            self.discordEmitter.emit('sendGameServerMsg', self.serverName, 'Disconnected from game servers, reconnecting');
+            this.socketHandler.reconnect();
+            // TODO: should probably attempt to start server on our own?
+            // setTimeout(self.serverStart, 10000); // how do i get args into this?
+            return;
+        }
+        
+        await startServer(self.visitSecret, 'us-west', slotName, '1.1.27');
     }
 
-    serverStop(): void {
+    async serverStop() {
+        // TODO: confirm server isnt offline already
         const self = this;
-        this.discordEmitter.emit('sendGameServerMsg', self.serverName, 'stopping server');
+        if (self.visitSecret !== undefined && self.launchId !== undefined) {
+            await stopServer(self.visitSecret, self.launchId);
+            return;
+        }
+
+        self.discordEmitter.emit('sendGameServerMsg', self.serverName, 'Server offline'); // better way to confirm this?
     }
 
     sendMessage(args: string[]): void {
@@ -392,10 +389,6 @@ export class GameServerManager {
             mods: []
         }
 
-        // get the list of mods if they exist on server. if not create them
-        // then we need to check if the mod exists, if it does use the activeOn for the update
-        // if it doesnt, active on all slots
-
         for (const mod of json.mods) {
             const split = (mod.text as string).trim().split(/ +/);
             let modVersion = split.pop();
@@ -428,27 +421,25 @@ export class GameServerManager {
 
     captureStarting(json: any): void {
         const self = this;
-
         self.isStarting = true;
         self.launchId = json.launchId;
-
-        self.discordEmitter.emit('sendManagementMsg', `${self.serverName} is starting`);
+        self.discordEmitter.emit('sendGameServerMsg', self.serverName, `Server is spinning up`);
     }
 
     captureRunning(json: any): void {
         const self = this;
-
         self.isRunning = true;
         self.launchId = json.launchId;
-
-        self.discordEmitter.emit('sendManagementMsg', `${self.serverName} is onnline at ${json.socket}`);
+        self.discordEmitter.emit('sendGameServerMsg', self.serverName, `Server online at ${json.socket}`);
     }
 
     captureStopping(json: any): void {
         const self = this;
-        self.discordEmitter.emit('sendManagementMsg', `${self.serverName} is shutting down`);
+        self.launchId = undefined; // should we place this here? makes sense since the shut downprocess has started
+        self.discordEmitter.emit('sendGameServerMsg', self.serverName, `Server shutting down`);
     }
-
+//idjloOkxnJ1NX6csrnup7VuE
+//P98CCBPVdC1opxcDBj1syaJR
     captureInfo(json: any): void {
         const self = this;
 
@@ -458,11 +449,11 @@ export class GameServerManager {
                 self.isStarting = false;
                 self.isOffline = true;
                 self.launchId = undefined;
-                self.discordEmitter.emit('sendManagementMsg', `${self.serverName} is offline`);
+                self.discordEmitter.emit('sendGameServerMsg', self.serverName, `Server offline`);
                 break;
 
             case 'provisioning virtual machine, this will take an extra minute':
-                self.discordEmitter.emit('sendManagementMsg', `${self.serverName} start up is slowed`);
+                self.discordEmitter.emit('sendGameServerMsg', self.serverName, `Start up is slowed, provisioning virtual machine`);
                 break;
         }
     }

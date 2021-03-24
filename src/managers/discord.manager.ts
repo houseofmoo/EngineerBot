@@ -185,7 +185,7 @@ export class DiscordManager {
             // if guild exists...which it should
             if (self.guild !== undefined) {
 
-                const channel = self.gameServerChannels.find(gsc => gsc.channel.name === channelName);
+                const channel = self.gameServerChannels.find(gsc => gsc.channel.name.toLowerCase() === channelName.toLowerCase());
                 if (channel !== undefined) {
                     await channel.webhook.delete();
                     await channel.channel.delete();
@@ -265,7 +265,6 @@ export class DiscordManager {
                         sm.setParent(category);
                         return sm;
                     }
-                    (channel as discord.TextChannel).send('Hello!');
                     return channel as discord.TextChannel;
                 }
 

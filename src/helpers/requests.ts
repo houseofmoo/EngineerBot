@@ -29,24 +29,22 @@ export async function login(visitSecret: string, serverToken: string | null): Pr
     }
 }
 
-export async function serverStart(visitSecret: string, region: string, slot: string, version: string): Promise<void> {
-    // TODO: add trycatch to all requests
-    //let form = `visitSecret=${visitSecret}&region=${region}&slot=${slot}&version=${version}`;
+export async function startServer(visitSecret: string, region: string, slot: string, version: string): Promise<void> {
     await axios.post(urls.gameServer.start, qs.stringify({
-        visitSecret,
-        region,
-        slot,
-        version
+        visitSecret: visitSecret,
+        region: region,
+        save: slot,
+        version: version
     })).then((response) => {
         console.log("response code: " + response.status + ' ' + response.statusText);
     })
 }
 
-export async function serverStop(visitSecret: string, launchId: string): Promise<void> {
+export async function stopServer(visitSecret: string, launchId: string): Promise<void> {
     //let form = `visitSecret=${visitSecret}&launchId=${launchId}`;
-    await axios.post(urls.gameServer.start, qs.stringify({
-        visitSecret,
-        launchId
+    await axios.post(urls.gameServer.stop, qs.stringify({
+        visitSecret: visitSecret,
+        launchId: launchId,
     })).then((response) => {
         console.log("response code: " + response.status + ' ' + response.statusText);
     })
@@ -67,8 +65,8 @@ export async function promote(visitSecret: string, launchId: string, username: s
     // dont ask me, forms are friggin weird
     //let form = `visitSecret=${visitSecret}&launchId=${launchId}&input=%2Fpromote%20${username}`;
     await axios.post(urls.gameServer.console, qs.stringify({
-        visitSecret,
-        launchId,
+        visitSecret: visitSecret,
+        launchId: launchId,
         input: `/promote ${username}`
     })).then((response) => {
         console.log("response code: " + response.status + ' ' + response.statusText);

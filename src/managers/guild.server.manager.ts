@@ -288,7 +288,7 @@ export class GuildServerManager {
         const serverName = args[0];
 
         // look for manager
-        const server = self.gameServerManagers.find(gsm => gsm.serverName === serverName);
+        const server = self.gameServerManagers.find(gsm => gsm.serverName.toLowerCase() === serverName.toLowerCase());
         if (server === undefined) {
             self.discordEmitter.emit('sendManagementMsg', `Could not find provided server name in servers list`);
             return;
