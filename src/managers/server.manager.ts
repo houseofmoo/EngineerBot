@@ -3,13 +3,13 @@ import { SocketManager } from './socket.manager';
 import { DiscordMessageEmitter } from '../emitters/discord.message.emitter';
 import { getServerCommand, getServerCommands, getServerCommandHelp } from '../helpers/command.list'
 import { login, startServer, stopServer } from '../helpers/requests';
-import { removeGameServer } from '../database/game.server.db';
+import { removeGameServer } from '../database/server.db';
 import { addGameMods, getGameMods, replaceGameMods, removeGameMods } from '../database/mod.db';
 import { addSaves, getSaves, removeSaves, updateSaves } from '../database/saves.db';
-import { GameServerMods } from '../models/data.types';
+import { ServerMods } from '../models/data.types';
 
 // mananges a single game server for guild
-export class GameServerManager {
+export class ServerManager {
     guildId: string;
     serverName: string;
     serverToken: string;
@@ -383,7 +383,7 @@ export class GameServerManager {
 
 
         // replace game mods document with the game mods we receive here
-        const updatedModsList: GameServerMods = {
+        const updatedModsList: ServerMods = {
             guildId: self.guildId,
             token: self.serverToken,
             mods: []
@@ -415,6 +415,7 @@ export class GameServerManager {
             }
 
         }
+        
         // update document
         await replaceGameMods(self.guildId, self.serverToken, serverMods);
     }

@@ -1,32 +1,14 @@
 import discord from 'discord.js';
-import { getGuild, addGuild, removeGuild } from './database/guild.db';
-import { GuildServerManager } from './managers/guild.server.manager';
+import { GuildManager } from './managers/guild.manager';
 import config from './data/config.json';
 
-
-async function onLaunch() {
+async function onLaunch(bot: any) {
     try {
         // build managers for each guild
-        await Promise.all(bot.guilds.cache.map(async (g) => {
-            // find guild in db
-            let guildData = await getGuild(g.id);
-
-            // if unknown guild, create an entry
-            if (guildData === undefined) {
-                // create new guild entry
-                const newGuild = {
-                    guildId: g.id,
-                    guildName: g.name
-                }
-                guildData = await addGuild(newGuild);
-            }
-
-            // only create manager if we successfully added guild data to db
-            if (guildData !== undefined) {
-                const newGuildServer = new GuildServerManager(g.id, bot);
-                await newGuildServer.initManagers();
-                managers.set(g.id, newGuildServer);
-            }
+        await Promise.all(bot.guilds.cache.map(async (g: any) => {
+            const newGuildServer = new GuildManager(g.id, bot);
+            await newGuildServer.initManagers();
+            managers.set(g.id, newGuildServer);
         }));
     }
     catch (err) {
@@ -37,22 +19,9 @@ async function onLaunch() {
 
 async function onJoinGuild(guild: discord.Guild) {
     try {
-        // just confirm we don't know about this guild
-        let guildData: any = await getGuild(guild.id);
-        if (guildData === undefined) {
-            const newGuild = {
-                guildId: guild.id,
-                guildName: guild.name
-            }
-            guildData = await addGuild(newGuild);
-
-            // only create manager if we successfully added guild data to db
-            if (guildData !== undefined) {
-                const newGuildServer = new GuildServerManager(guild.id, bot);
-                await newGuildServer.initManagers();
-                managers.set(guild.id, newGuildServer);
-            }
-        }
+        const newGuildServer = new GuildManager(guild.id, bot);
+        await newGuildServer.initManagers();
+        managers.set(guild.id, newGuildServer);
     }
     catch (err) {
         console.log(err);
@@ -62,15 +31,11 @@ async function onJoinGuild(guild: discord.Guild) {
 
 async function onLeaveGuild(guild: discord.Guild) {
     try {
-        // remove guild data from db
-        let guildData = await removeGuild(guild.id);
-        if (guildData !== undefined) {
-            // tell manager to shut it down and delete documents from db
-            const manager = managers.get(guild.id);
-            if (manager !== undefined) {
-                await manager.remove();
-                managers.delete(guild.id);
-            }
+        // tell manager to shut it down
+        const manager = managers.get(guild.id);
+        if (manager !== undefined) {
+            await manager.remove();
+            managers.delete(guild.id);
         }
     }
     catch (err) {
@@ -83,12 +48,12 @@ async function onLeaveGuild(guild: discord.Guild) {
 const bot = new discord.Client();
 
 // create a list of game
-const managers: Map<string, GuildServerManager> = new Map<string, GuildServerManager>();
+const managers: Map<string, GuildManager> = new Map<string, GuildManager>();
 
 // once the bot is online
 bot.once('ready', async () => {
     console.log('Engineer MKII is online');
-    await onLaunch();
+    await onLaunch(bot);
 });
 
 // on message

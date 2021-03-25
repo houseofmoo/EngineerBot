@@ -1,6 +1,6 @@
 import faunadb from 'faunadb';
 import config from '../data/config.json';
-import { GameServerMods, Mod } from '../models/data.types';
+import { ServerMods, GameMod } from '../models/data.types';
 
 const q = faunadb.query;
 const client = new faunadb.Client({ secret: config.database.secret });
@@ -57,7 +57,7 @@ export async function addGameMods(guildId: string, token: string) {
 }
 
 // update name, version or modId of existing mod
-export async function updateGameMod(guildId: string, token: string, modifiedMod: Mod) {
+export async function updateGameMod(guildId: string, token: string, modifiedMod: GameMod) {
     try {
         const modList: any = await getGameMods(guildId, token);
         const mod = modList.data.mods.find((m:any) => m.name === modifiedMod.name);
@@ -83,7 +83,7 @@ export async function updateGameMod(guildId: string, token: string, modifiedMod:
 }
 
 // add a new game mod to a existing mod list
-export async function addGameMod(guildId: string, token: string, newMod: Mod) {
+export async function addGameMod(guildId: string, token: string, newMod: GameMod) {
     try {
         const modList: any = await getGameMods(guildId, token);
         modList.data.mods.push({
@@ -135,7 +135,7 @@ export async function removeGameMod(guildId: string, token: string, modName: str
     }
 }
 
-export async function replaceGameMods(guildId: string, token: string, mods: GameServerMods) {
+export async function replaceGameMods(guildId: string, token: string, mods: ServerMods) {
     try {
         const modList: any = await getGameMods(guildId, token);
         return await client.query(

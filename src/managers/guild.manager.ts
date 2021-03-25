@@ -1,24 +1,24 @@
 import discord from 'discord.js'
 import websocket from 'websocket';
 import { EOL } from 'os';
-import { getGuildCommandHelp, getGuildCommands, GetGuildCommand } from '../helpers/command.list';
+import { getGuildCommandHelp, getGuildCommands, getGuildCommand } from '../helpers/command.list';
 import { DiscordManager } from './discord.manager';
-import { GameServerManager } from './game.server.manager';
+import { ServerManager } from './server.manager';
 import { DiscordMessageEmitter } from '../emitters/discord.message.emitter';
 import { login } from '../helpers/requests';
-import { getGameServers, addGameServer, removeGameServer } from '../database/game.server.db';
+import { getGameServers, addGameServer, removeGameServer } from '../database/server.db';
 import { addGameMods } from '../database/mod.db';
 import { addSaves } from '../database/saves.db';
 import config from '../data/config.json';
 import urls from '../data/api.urls.json';
 
-export class GuildServerManager {
+export class GuildManager {
     botClient: discord.Client;
 
     guildId: string;                            // this guilds ID
 
     discordManager: DiscordManager;             // handles dealing with this guild discord messaging
-    gameServerManagers: GameServerManager[];    // manages game server
+    gameServerManagers: ServerManager[];    // manages game server
 
     discordEmitter: DiscordMessageEmitter;      // discord manager response to emitted events
 
@@ -45,7 +45,7 @@ export class GuildServerManager {
 
         // init a game server manager for each server this guild has
         for (const server of serverList.data) {
-            const gsm = new GameServerManager(self.guildId, server.data.name, server.data.token, self.discordEmitter);
+            const gsm = new ServerManager(self.guildId, server.data.name, server.data.token, self.discordEmitter);
             self.gameServerManagers.push(gsm);
         }
 
@@ -68,7 +68,7 @@ export class GuildServerManager {
         // is this a management message
         if (self.discordManager.isManagementChannel(message)) {
             // confirm command and args are valid
-            const command = GetGuildCommand(commandId);
+            const command = getGuildCommand(commandId);
             if (command === undefined) {
                 this.discordEmitter.emit('sendManagementMsg', `I do not know how to do that: ${commandId}`);
                 return;
@@ -142,7 +142,7 @@ export class GuildServerManager {
         return args;    // return just the args
     }
 
-    getGameServerManager(channelName: string | undefined): GameServerManager | undefined {
+    getGameServerManager(channelName: string | undefined): ServerManager | undefined {
         if (channelName === undefined) {
             this.discordEmitter.emit('sendManagementMsg', `Could not get channel name`);
             return undefined;
@@ -237,7 +237,7 @@ export class GuildServerManager {
         const savesResult = await addSaves(self.guildId, token);
 
         // create a server manager
-        const gsm = new GameServerManager(self.guildId, serverName, token, self.discordEmitter);
+        const gsm = new ServerManager(self.guildId, serverName, token, self.discordEmitter);
         self.gameServerManagers.push(gsm);
 
         // create discord channel

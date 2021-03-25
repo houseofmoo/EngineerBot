@@ -154,7 +154,7 @@ export function getGuildCommands(): string {
     return 'a list of guild commands';
 }
 
-export function GetGuildCommand(commandId: string) {
+export function getGuildCommand(commandId: string) {
     return guildCommandList.find(c => c.commandId === commandId);
 }
 

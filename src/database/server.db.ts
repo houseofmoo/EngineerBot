@@ -1,6 +1,6 @@
 import faunadb from 'faunadb';
 import config from '../data/config.json';
-import { GameServer } from '../models/data.types';
+import { Server } from '../models/data.types';
 
 const q = faunadb.query;
 const client = new faunadb.Client({ secret: config.database.secret });
@@ -48,7 +48,7 @@ export async function removeGameServer(guildId: string, token: string) {
     }
 }
 
-export async function addGameServer(newGameServer: GameServer) {
+export async function addGameServer(newGameServer: Server) {
     try {
         return await client.query(
             q.Create(
@@ -73,7 +73,7 @@ export async function addGameServer(newGameServer: GameServer) {
     }
 }
 
-export async function updateGameServer(newGameServerData: GameServer) {
+export async function updateGameServer(newGameServerData: Server) {
     try {
         const gameServer: any = await getGameServer(newGameServerData.guildId, newGameServerData.token);
         return await client.query(

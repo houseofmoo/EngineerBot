@@ -1,6 +1,6 @@
 import faunadb from 'faunadb';
 import config from '../data/config.json';
-import { Save } from '../models/data.types';
+import { ServerSaves } from '../models/data.types';
 
 const q = faunadb.query;
 const client = new faunadb.Client({ secret: config.database.secret });
@@ -66,7 +66,7 @@ export async function removeSaves(guildId: string, token: string) {
 }
 
 // update saves data
-export async function updateSaves(guildId: string, token: string, saveData: Save) {
+export async function updateSaves(guildId: string, token: string, saveData: ServerSaves) {
     try {
         const slots: any = await getSaves(guildId, token);
         return await client.query(

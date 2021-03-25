@@ -1,9 +1,9 @@
-export type DiscordGuild = {
-    guildId: string;
-    guildName: string;
-}
+// export type Guild = {
+//     guildId: string;
+//     guildName: string;
+// }
 
-export type GameServer = {
+export type Server = {
     guildId: string;
     name: string;
     token: string;
@@ -12,7 +12,7 @@ export type GameServer = {
     admins: string[];
 }
 
-export type Save = {
+export type ServerSaves = {
     guildId: string;
     token: string;
     slot1: string;
@@ -26,13 +26,13 @@ export type Save = {
     slot9: string;
 }
 
-export type GameServerMods = {
+export type ServerMods = {
     guildId: string;
     token: string;
-    mods: Mod[];    // list of mods available on server
+    mods: GameMod[];    // list of mods available on server
 }
 
-export type Mod = {
+export type GameMod = {
     name: string;
     version: string;
     modId: string;
