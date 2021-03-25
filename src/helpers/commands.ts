@@ -1,3 +1,4 @@
+import discord from 'discord.js'
 import config from '../data/config.json';
 
 export const guildCommandList = [
@@ -5,7 +6,7 @@ export const guildCommandList = [
         commandId: 'server-create',
         argCount: 1,
         format: `${config.bot.commandPrefix}server-create serverName`,
-        help: `Generates a new server token and server to server list`
+        help: `Generates a new server token and adds server to server list`
     },
     {
         commandId: 'server-add',
@@ -17,7 +18,7 @@ export const guildCommandList = [
         commandId: 'server-remove',
         argCount: 1,
         format: `${config.bot.commandPrefix}server-remove serverName`,
-        help: `Removes a server from server list. Contents of server are unaffected and can be viewed at factorio.zone`
+        help: `Removes a server from server list. Contents of server are unaffected and can be viewed at https://factorio.zone`
     },
     {
         commandId: 'server-list',
@@ -35,16 +36,16 @@ export const guildCommandList = [
         commandId: 'commands',
         argCount: 0,
         format: `${config.bot.commandPrefix}commands`,
-        help: `return a list of available commands`
+        help: `return a list of available guild commands`
     }
 ]
 
 export const serverCommandList = [
     {
-        commandId: 'slot-list',
+        commandId: 'save-list',
         argCount: 0,
-        format: `${config.bot.commandPrefix}slot-list`,
-        help: `Lists all slots on a server`
+        format: `${config.bot.commandPrefix}save-list`,
+        help: `Lists all saved games on the server`
     },
     {
         commandId: 'mod-install',
@@ -56,19 +57,19 @@ export const serverCommandList = [
         commandId: 'mod-delete',
         argCount: 1,
         format: `${config.bot.commandPrefix}mod-delete modName`,
-        help: `Deletes mod from server. All slots that used that mod will have it removed`
+        help: `Deletes mod from server`
     },
     {
-        commandId: 'server-mod-list',
+        commandId: 'mod-list',
         argCount: 0,
-        format: `${config.bot.commandPrefix}server-mod-list`,
+        format: `${config.bot.commandPrefix}mod-list`,
         help: `Lists all mods installed to server`
     },
     {
         commandId: 'mod-update',
         argCount: 1,
         format: `${config.bot.commandPrefix}mod-update modName`,
-        help: `Attempts to download and activate latest version of mod. Slots will be updated as well.`
+        help: `Attempts to download latest version of mod to the server`
     },
     {
         commandId: 'start',
@@ -114,27 +115,21 @@ export const serverCommandList = [
     },
     {
         commandId: 'mod-activate',
-        argCount: 2,
-        format: `${config.bot.commandPrefix}mod-activate slotName modName`,
-        help: `Attempts to activate mod on slot. If mod not existing on server will download mod. Dependencies may not be downloaded`
+        argCount: 2,    // second arg may contain spaces
+        format: `${config.bot.commandPrefix}mod-activate slotId modName`,
+        help: `Activate mod on slot`
     },
     {
         commandId: 'mod-deactivate',
-        argCount: 2,
-        format: `${config.bot.commandPrefix}slot-mod-deactivate slotName modName`,
+        argCount: 2,    // second arg may contain spaces
+        format: `${config.bot.commandPrefix}slot-mod-deactivate slotId modName`,
         help: `Deactivates mod on slot`
-    },
-    {
-        commandId: 'slot-mod-list',
-        argCount: 1,
-        format: `${config.bot.commandPrefix}slot-mod-list slotName`,
-        help: `Lists all mods active on slot`
     },
     {
         commandId: 'commands',
         argCount: 0,
         format: `${config.bot.commandPrefix}commands`,
-        help: `return a list of available commands`
+        help: `return a list of available server commands`
     }
 ]
 
@@ -149,9 +144,16 @@ export function getGuildCommandHelp(commandId: string) {
     ${command.help}`;
 }
 
-export function getGuildCommands(): string {
-    // TODO: this will return an embed?
-    return 'a list of guild commands';
+export function getGuildCommands() {
+    const helpEmbed = new discord.MessageEmbed();
+    helpEmbed.setColor('#0099ff');
+    helpEmbed.setTitle('Management Commands');
+
+    for (const command of guildCommandList) {
+        helpEmbed.addField(command.format, command.help);
+    }
+
+    return helpEmbed;
 }
 
 export function getGuildCommand(commandId: string) {
@@ -169,10 +171,39 @@ export function getServerCommandHelp(commandId: string): string {
 }
 
 export function getServerCommands() {
-    // todo: return embed of list of server commands
-    return 'a list of server commands';
+    const helpEmbed = new discord.MessageEmbed();
+    helpEmbed.setColor('#0099ff');
+    helpEmbed.setTitle('Server Commands');
+
+    for (const command of serverCommandList) {
+        helpEmbed.addField(command.format, command.help);
+    }
+
+    return helpEmbed;
 }
 
 export function getServerCommand(commandId: string) {
     return serverCommandList.find(c => c.commandId === commandId);
+}
+
+// returns command provided from discord message
+export function getCommandFromMessage(message: discord.Message): string {
+    // parse message into arguments
+    let args = message.content.slice(config.bot.commandPrefix.length).trim().split(/ +/);
+
+    // get first index, thats the command
+    let command = args.shift();
+
+    if (command !== undefined) {
+        return command.toLowerCase();
+    }
+
+    return 'none';
+}
+
+// returns arguments provided from discord message
+export function getCommandArgsFromMessage(message: discord.Message): string[] {
+    let args = message.content.slice(config.bot.commandPrefix.length).split(/ +/);
+    args.shift();   // we don't care about the first element, that is the command
+    return args;    // return just the args
 }

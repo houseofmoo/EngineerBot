@@ -5,7 +5,7 @@ import { Server } from '../models/data.types';
 const q = faunadb.query;
 const client = new faunadb.Client({ secret: config.database.secret });
 
-export async function getGameServers(guildId: string) {
+export async function getServers(guildId: string) {
     try {
         return await client.query(
             q.Map(
@@ -21,7 +21,7 @@ export async function getGameServers(guildId: string) {
     }
 }
 
-export async function getGameServer(guildId: string, token: string) {
+export async function getServer(guildId: string, token: string) {
     try {
         return await client.query(
             q.Get(q.Match(q.Index("game_server_by_guildId_and_token"), guildId, token))
@@ -34,9 +34,22 @@ export async function getGameServer(guildId: string, token: string) {
     }
 }
 
-export async function removeGameServer(guildId: string, token: string) {
+export async function getServerByToken(token: string) {
     try {
-        const gameServer: any = await getGameServer(guildId, token);
+        return await client.query(
+            q.Get(q.Match(q.Index("game_server_by_token"), token))
+        );
+    }
+    catch (err) {
+        console.log(err);
+        console.log('error getting game server by token');
+        return undefined;
+    }
+}
+
+export async function removeServer(guildId: string, token: string) {
+    try {
+        const gameServer: any = await getServer(guildId, token);
         return await client.query(
             q.Delete(gameServer.ref)
         );
@@ -48,7 +61,7 @@ export async function removeGameServer(guildId: string, token: string) {
     }
 }
 
-export async function addGameServer(newGameServer: Server) {
+export async function addServer(newGameServer: Server) {
     try {
         return await client.query(
             q.Create(
@@ -73,20 +86,20 @@ export async function addGameServer(newGameServer: Server) {
     }
 }
 
-export async function updateGameServer(newGameServerData: Server) {
+export async function updateServer(updatedServerData: Server) {
     try {
-        const gameServer: any = await getGameServer(newGameServerData.guildId, newGameServerData.token);
+        const gameServer: any = await getServer(updatedServerData.guildId, updatedServerData.token);
         return await client.query(
             q.Update(
                 gameServer.ref,
                 {
                     data: {
-                        guildId: newGameServerData.guildId,
-                        name: newGameServerData.name,
-                        token: newGameServerData.token,
-                        region: newGameServerData.region,
-                        version: newGameServerData.version,
-                        admins: newGameServerData.admins
+                        guildId: updatedServerData.guildId,
+                        name: updatedServerData.name,
+                        token: updatedServerData.token,
+                        region: updatedServerData.region,
+                        version: updatedServerData.version,
+                        admins: updatedServerData.admins
                     }
                 }
             )

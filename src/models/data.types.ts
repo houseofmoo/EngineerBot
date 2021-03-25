@@ -1,8 +1,3 @@
-// export type Guild = {
-//     guildId: string;
-//     guildName: string;
-// }
-
 export type Server = {
     guildId: string;
     name: string;

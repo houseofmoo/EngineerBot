@@ -6,79 +6,46 @@ export class SocketManager {
     serverToken: string;
     socketEmitter: SocketEventEmitter;
     socket: websocket.client;
-    isConnected: boolean;
     connection: websocket.connection | undefined;
 
     constructor(serverToken: string) {
         this.serverToken = serverToken;
         this.socketEmitter = new SocketEventEmitter();
         this.socket = new websocket.client();
-        this.isConnected = false;
         this.connection = undefined;
         this.init();
     }
 
     connect(): void {
         const self = this;
-
-        if (!this.isConnected) {
-            console.log(`connecting to ${urls.gameServer.websocket}`);
-            this.socket.connect(urls.gameServer.websocket);
-        }
-        else {
-            console.error('Retried connect() when websocket was still connected');
-        }
+        console.log(`connecting to ${urls.gameServer.websocket}`);
+        this.socket?.connect(urls.gameServer.websocket);
     }
 
-    reconnect() : void {
+    endConnection(): void {
         const self = this;
-
-        if (self.isConnected) {
-            // still connected
-            console.log(`tried reconnect but bool is still: ${self.isConnected}`)
-        }
-
-        if (self.connection !== undefined) {
-            if (self.connection.connected) {
-                // cannot reconnect
-                console.log(`tried reconnect but connection is still: ${self.connection}`);
-            }
-            else {
-                self.connect();
-            }
-        }
+        self.connection?.close();
     }
 
-    close() : void {
-        const self = this;
-        if (self.connection !== undefined && self.isConnected) {
-            self.connection.close();
-        }
-    }
-
-    init() : void {
+    init(): void {
         const self = this;
 
         self.socket.on('connectFailed', error => {
-            self.isConnected = false;
             self.socketEmitter.emit('websocketConnectionFail', error);
         })
 
         self.socket.on('connect', connection => {
-            self.isConnected = true;
             self.connection = connection;
             self.socketEmitter.emit('websocketConnected');
             console.log(`websocket connected to: ${urls.gameServer.websocket}`);
 
             connection.on('error', error => {
-                self.isConnected = false;
                 self.connection = undefined;
                 self.socketEmitter.emit('websocketError', error);
                 console.error(error);
             })
 
             connection.on('close', () => {
-                self.isConnected = false;
                 self.connection = undefined;
                 self.socketEmitter.emit('websocketClose');
                 console.log('websocket closed');

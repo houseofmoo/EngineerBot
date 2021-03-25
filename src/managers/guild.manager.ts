@@ -1,15 +1,14 @@
 import discord from 'discord.js'
-import websocket from 'websocket';
+import websocket, { server } from 'websocket';
 import { EOL } from 'os';
-import { getGuildCommandHelp, getGuildCommands, getGuildCommand } from '../helpers/command.list';
+import { getGuildCommandHelp, getGuildCommands, getGuildCommand, getCommandFromMessage,  getCommandArgsFromMessage } from '../helpers/commands';
 import { DiscordManager } from './discord.manager';
 import { ServerManager } from './server.manager';
 import { DiscordMessageEmitter } from '../emitters/discord.message.emitter';
 import { login } from '../helpers/requests';
-import { getGameServers, addGameServer, removeGameServer } from '../database/server.db';
+import { getServers, getServerByToken, addServer, removeServer } from '../database/server.db';
 import { addGameMods } from '../database/mod.db';
 import { addSaves } from '../database/saves.db';
-import config from '../data/config.json';
 import urls from '../data/api.urls.json';
 
 export class GuildManager {
@@ -34,13 +33,15 @@ export class GuildManager {
         const self = this;
 
         // get serverList
-        const serverList:any = await getGameServers(self.guildId);
+        const serverList:any = await getServers(self.guildId);
+
+        // if no servers just init discord manager
         if (serverList === undefined) {
-            // TODO: how to handle this?
+            await self.discordManager.initDiscordManager([]);
             return;
         }
 
-        // only called on first start up
+        // init discord manager for servers we know about
         await self.discordManager.initDiscordManager(serverList.data);
 
         // init a game server manager for each server this guild has
@@ -62,8 +63,8 @@ export class GuildManager {
         const self = this;
 
         // get command and args
-        const commandId = self.getCommandFromMessage(message);
-        const args = self.getCommandArgsFromMessage(message);
+        const commandId = getCommandFromMessage(message);
+        const args = getCommandArgsFromMessage(message);
 
         // is this a management message
         if (self.discordManager.isManagementChannel(message)) {
@@ -85,22 +86,22 @@ export class GuildManager {
         if (self.discordManager.isGameServerChannel(message)) {
             const channelName = self.discordManager.getChannelName(message);
             const gsm = self.getGameServerManager(channelName);
-            gsm?.handleCommand(commandId, args);
+            gsm?.handleCommand(commandId, args, message);
         }
     }
 
     async handleCommand(commandId: string, args: string[]) {
         switch (commandId) {
             case 'server-create':
-                await this.createGameServer(args);
+                await this.createServer(args);
                 break;
 
             case 'server-add':
-                await this.addGameServer(args);
+                await this.addServer(args);
                 break;
 
             case 'server-remove':
-                this.removeGameServer(args);
+                this.removeServer(args);
                 break;
 
             case 'server-list':
@@ -120,28 +121,6 @@ export class GuildManager {
         }
     }
 
-    // returns command provided from discord message
-    getCommandFromMessage(message: discord.Message): string {
-        // parse message into arguments
-        let args = message.content.slice(config.bot.commandPrefix.length).trim().split(/ +/);
-
-        // get first index, thats the command
-        let command = args.shift();
-
-        if (command !== undefined) {
-            return command.toLowerCase();
-        }
-
-        return 'none';
-    }
-
-    // returns arguments provided from discord message
-    getCommandArgsFromMessage(message: discord.Message): string[] {
-        let args = message.content.slice(config.bot.commandPrefix.length).split(/ +/);
-        args.shift();   // we don't care about the first element, that is the command
-        return args;    // return just the args
-    }
-
     getGameServerManager(channelName: string | undefined): ServerManager | undefined {
         if (channelName === undefined) {
             this.discordEmitter.emit('sendManagementMsg', `Could not get channel name`);
@@ -157,18 +136,23 @@ export class GuildManager {
         return server;
     }
 
-    isKnownServerName(serverName: string): boolean {
+    isKnownServerName(serverName: string) {
         const self = this;
-
-        const serverByName = self.gameServerManagers.find(gsm => gsm.serverName == serverName);
+        const serverByName = self.gameServerManagers.find(gsm => gsm.serverName === serverName);
         return serverByName !== undefined;
     }
 
-    isKnownToken(serverToken: string): boolean {
+    async isKnownToken(serverToken: string) {
         const self = this;
+        // check if token is being used by this guild
+        const serverByToken = self.gameServerManagers.find(gsm => gsm.serverToken === serverToken);
+        if (serverByToken !== undefined) {
+            return true;
+        }
 
-        const serverByToken = self.gameServerManagers.find(gsm => gsm.serverToken == serverToken);
-        return serverByToken !== undefined;
+        // check if token is being used by another guild
+        const found = await getServerByToken(serverToken);
+        return found !== undefined; 
     }
 
     async openTempTokenSocket(serverName: string, token: string | null): Promise<void> {
@@ -217,15 +201,15 @@ export class GuildManager {
         }
 
         // token was valid or we were provided with a new token
-        self.createGameServerManager(serverName, response.data.userToken);
+        self.createServerManager(serverName, response.data.userToken);
     }
 
     // add new server data to db and create game server manager
-    async createGameServerManager(serverName: string, token: string) {
+    async createServerManager(serverName: string, token: string) {
         const self = this;
 
         // add data to database
-        const serverResult = await addGameServer({
+        const serverResult = await addServer({
             guildId: self.guildId,
             name: serverName,
             token: token,
@@ -247,7 +231,7 @@ export class GuildManager {
         self.discordEmitter.emit('sendManagementMsg', `${serverName} using ${token} is now being managed`);
     }
 
-    async createGameServer(args: string[]): Promise<void> {
+    async createServer(args: string[]): Promise<void> {
         const serverName = args[0];
 
         // check values are good
@@ -260,7 +244,7 @@ export class GuildManager {
         this.openTempTokenSocket(serverName, null);
     }
 
-    async addGameServer(args: string[]): Promise<void> {
+    async addServer(args: string[]): Promise<void> {
         const self = this;
 
         const serverName = args[0];
@@ -272,7 +256,8 @@ export class GuildManager {
             return;
         }
 
-        if (self.isKnownToken(serverToken)) {
+        const knownToken = await self.isKnownToken(serverToken)
+        if (knownToken) {
             self.discordEmitter.emit('sendManagementMsg', `${serverToken} already in use`);
             return;
         }
@@ -281,7 +266,7 @@ export class GuildManager {
         this.openTempTokenSocket(serverName, serverToken);
     }
 
-    async removeGameServer(args: string[]): Promise<void> {
+    async removeServer(args: string[]): Promise<void> {
         const self = this;
 
         // get server name from arguments
@@ -297,23 +282,15 @@ export class GuildManager {
         // get server token
         const serverToken = server.serverToken;
 
-        // remove manager from list and save document
-        const result = await removeGameServer(self.guildId, serverToken);
-        if (result !== undefined) {
-            // tell server we're done
-            server.remove();
+         // tell server we're done
+         server.remove();
 
-            // remove manager from managers list
-            const serverIndex = self.gameServerManagers.indexOf(server);
-            self.gameServerManagers.splice(serverIndex, 1);
+         // remove manager from managers list
+         const serverIndex = self.gameServerManagers.indexOf(server);
+         self.gameServerManagers.splice(serverIndex, 1);
 
-            self.discordManager.removeChannel(serverName);
-            self.discordEmitter.emit('sendManagementMsg', `${serverName} using ${serverToken} removed from server list`);
-        }
-        else {
-            console.error(result);
-            self.discordEmitter.emit('sendManagementMsg', `Something went wrong removing ${serverName} from database`);
-        }
+         self.discordManager.removeChannel(serverName);
+         self.discordEmitter.emit('sendManagementMsg', `${serverName} using ${serverToken} removed from server list`);
     }
 
     listServers(args: string[]): void {

@@ -63,13 +63,14 @@ export async function updateGameMod(guildId: string, token: string, modifiedMod:
         const mod = modList.data.mods.find((m:any) => m.name === modifiedMod.name);
         mod.version = modifiedMod.version;
         mod.modId = modifiedMod.modId;
+        mod.activeOn = modifiedMod.activeOn;
 
         return await client.query(
             q.Update(
                 modList.ref,
                 {
                     data: {
-                        mods: modList
+                        mods: modList.data.mods
                     }
                 }
             )
@@ -135,9 +136,9 @@ export async function removeGameMod(guildId: string, token: string, modName: str
     }
 }
 
-export async function replaceGameMods(guildId: string, token: string, mods: ServerMods) {
+export async function replaceGameMods(mods: ServerMods) {
     try {
-        const modList: any = await getGameMods(guildId, token);
+        const modList: any = await getGameMods(mods.guildId, mods.token);
         return await client.query(
             q.Update(
                 modList.ref,

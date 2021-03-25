@@ -61,7 +61,7 @@ export async function enableMod(visitSecret: string, modId: string, enabled: boo
     })
 }
 
-export async function promote(visitSecret: string, launchId: string, username: string): Promise<void> {
+export async function promote(visitSecret: string, launchId: string | undefined, username: string): Promise<void> {
     // dont ask me, forms are friggin weird
     //let form = `visitSecret=${visitSecret}&launchId=${launchId}&input=%2Fpromote%20${username}`;
     await axios.post(urls.gameServer.console, qs.stringify({

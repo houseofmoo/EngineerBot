@@ -106,53 +106,6 @@ export class DiscordManager {
         return gsc?.channel.name;
     }
 
-    // send list of commands to channel
-    sendCommandList(commandList: any[]): void {
-        const example = new discord.MessageEmbed()
-            .setColor('#0099ff')
-            .setTitle('Some title')
-            .setURL('https://discord.js.org/')
-            .setAuthor('Some name', 'https://i.imgur.com/wSTFkRM.png', 'https://discord.js.org')
-            .setDescription('Some description here')
-            .setThumbnail('https://i.imgur.com/wSTFkRM.png')
-            .addFields(
-                { name: 'Regular field title', value: 'Some value here' },
-                { name: '\u200B', value: '\u200B' },
-                { name: 'Inline field title', value: 'Some value here', inline: true },
-                { name: 'Inline field title', value: 'Some value here', inline: true },
-            )
-            .addField('Inline field title', 'Some value here', true)
-            .setImage('https://i.imgur.com/wSTFkRM.png')
-            .setTimestamp()
-            .setFooter('Some footer text here', 'https://i.imgur.com/wSTFkRM.png');
-
-        this.sendToManagementChannel(example);
-
-
-        const idPad = 20;
-        const formatPad = 40;
-
-        // format response
-        let response = '```'; // open code block
-        response += 'I respond to:' + EOL;
-        response += 'command'.padEnd(idPad, ' ');
-        response += 'format'.padEnd(formatPad);
-        //response += 'description' + EOL;
-
-        // insert commands to response
-        for (const command of commandList) {
-            response += `${command.commandId.padEnd(idPad, ' ')}`;
-            response += `${command.format.padEnd(formatPad, ' ')}` + EOL;
-            //response += `${command.description}` + EOL;
-        }
-
-        // close codeblock tag
-        response += "```";
-
-        // send
-        this.sendToManagementChannel(response);
-    }
-
     // adds a new channel for new game servers
     async addNewChannel(channelName: string) {
         const self = this;
@@ -187,6 +140,9 @@ export class DiscordManager {
                 if (channel !== undefined) {
                     await channel.webhook.delete();
                     await channel.channel.delete();
+
+                    const index = self.gameServerChannels.indexOf(channel);
+                    self.gameServerChannels.splice(index, 1);
                 }
             }
         }
