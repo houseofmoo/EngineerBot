@@ -6,9 +6,9 @@ import { DiscordMessageEmitter } from '../emitters/discord.message.emitter';
 import { getServerCommand, getServerCommands, getServerCommandHelp } from '../helpers/commands'
 import { login, startServer, stopServer, chat, promote } from '../helpers/requests';
 import { getServer, updateServer, removeServer } from '../database/server.db';
-import { addGameMods, getGameMods, replaceGameMods, removeGameMods, updateGameMod } from '../database/mod.db';
+import { getGameMods, getGameMod, addGameMod, removeGameMod, removeAllMods, updateGameMod } from '../database/mods.db';
 import { addSaves, getSaves, removeSaves, updateSaves } from '../database/saves.db';
-import { Server, ServerMods, GameMod } from '../models/data.types';
+import { Server, GameMod } from '../models/data.types';
 import { ServerState } from '../models/server.state';
 
 // mananges a single game server for guild
@@ -206,7 +206,7 @@ export class ServerManager {
     async remove() {
         const self = this;
         self.removeListeners();
-        await removeGameMods(self.guildId, self.serverToken);
+        await removeAllMods(self.guildId, self.serverToken);
         await removeSaves(self.guildId, self.serverToken);
         await removeServer(self.guildId, self.serverToken);
         self.socketHandler.endConnection();
@@ -260,7 +260,7 @@ export class ServerManager {
         }
         else {
             for (const mod of mods.data.mods) {
-                modEmbed.addField(`${mod.name} ${mod.version}`, mod.activeOn.filter((m:any) => m !== '').join(', '));
+                modEmbed.addField(`${mod.name} ${mod.version}`, mod.activeOn.filter((m: any) => m !== '').join(', '));
             }
         }
 
@@ -428,9 +428,6 @@ export class ServerManager {
         const slotId = args.shift();
         const modName = args.join(' ');
 
-        let modFound = false;
-        let slotNotFound = false;
-
         // confirm valid slot
         if (slotId === undefined || !self.isValidSlot(slotId)) {
             this.discordEmitter.emit('sendGameServerMsg', self.serverName, `${slotId} is not a valid slot`);
@@ -438,46 +435,30 @@ export class ServerManager {
         }
 
         // get mods for this server
-        const mods: any = await getGameMods(self.guildId, self.serverToken);
-        let updatedMod: GameMod = {
-            name: '',
-            version: '',
-            modId: '',
-            activeOn: []
-        }
-
-        // iterate over mods and look for the mod we want to add activate
-        for (const mod of mods.data.mods) {
-            if (mod.name === modName) {
-                modFound = true;
-                if (!mod.activeOn.includes(slotId)) {
-                    slotNotFound = true;
-                    updatedMod = {
-                        name: mod.name,
-                        version: mod.version,
-                        modId: mod.modId,
-                        activeOn: mod.activeOn
-                    };
-                    const slotNum = Number(slotId.charAt(slotId.length - 1));
-                    updatedMod.activeOn[slotNum - 1] = slotId;
-                }
-
-                // once we found the mod, we're done
-                break;
-            }
-        }
-
-        // update document
-        if (modFound && slotNotFound) {
-            this.discordEmitter.emit('sendGameServerMsg', self.serverName, `${modName} is now activated on ${slotId}`);
-            await updateGameMod(self.guildId, self.serverToken, updatedMod);
-        }
-        else if (!slotNotFound) {
-            this.discordEmitter.emit('sendGameServerMsg', self.serverName, `${modName} was already active on ${slotId}`);
-        }
-        else {
+        const mod: any = await getGameMod(self.guildId, self.serverToken, modName);
+        if (mod === undefined) {
             this.discordEmitter.emit('sendGameServerMsg', self.serverName, `${modName} was not found on server`);
+            return;
         }
+
+        const modifiedMod = {
+            guildId: self.guildId,
+            token: self.serverToken,
+            name: mod.data.name,
+            version: mod.data.version,
+            modId: mod.data.modId,
+            activeOn: mod.data.activeOn
+        }
+
+        if (!modifiedMod.activeOn.includes(slotId)) {
+            const slotNum = Number(slotId.charAt(slotId.length - 1));
+            modifiedMod.activeOn[slotNum - 1] = slotId;
+            this.discordEmitter.emit('sendGameServerMsg', self.serverName, `${modName} is now activated on ${slotId}`);
+            await updateGameMod(modifiedMod, mod.ref);
+            return;
+        }
+
+        this.discordEmitter.emit('sendGameServerMsg', self.serverName, `${modName} was already active on ${slotId}`);
     }
 
     async deactivateMod(args: string[]) {
@@ -486,9 +467,6 @@ export class ServerManager {
         const slotId = args.shift();
         const modName = args.join(' ');
 
-        let modFound = false;
-        let slotFound = false;
-
         // confirm valid slot
         if (slotId === undefined || !self.isValidSlot(slotId)) {
             this.discordEmitter.emit('sendGameServerMsg', self.serverName, `${slotId} is not a valid slot`);
@@ -496,47 +474,30 @@ export class ServerManager {
         }
 
         // get mods for this server
-        const mods: any = await getGameMods(self.guildId, self.serverToken);
-        let updatedMod: GameMod = {
-            name: '',
-            version: '',
-            modId: '',
-            activeOn: []
-        }
-
-        // iterate over mods and look for the mod we want to add activate
-        for (const mod of mods.data.mods) {
-            if (mod.name === modName) {
-                modFound = true;
-                if (mod.activeOn.includes(slotId)) {
-                    slotFound = true;
-                    updatedMod = {
-                        name: mod.name,
-                        version: mod.version,
-                        modId: mod.modId,
-                        activeOn: mod.activeOn
-                    };
-
-                    const slotNum = Number(slotId.charAt(slotId.length - 1));
-                    updatedMod.activeOn[slotNum - 1] = '';
-                }
-
-                // once we found the mod, we're done
-                break;
-            }
-        }
-
-        // update document
-        if (modFound && slotFound) {
-            this.discordEmitter.emit('sendGameServerMsg', self.serverName, `${modName} is now deactivated on ${slotId}`);
-            await updateGameMod(self.guildId, self.serverToken, updatedMod)
-        }
-        else if (!slotFound) {
-            this.discordEmitter.emit('sendGameServerMsg', self.serverName, `${modName} was not active for ${slotId}`);
-        }
-        else {
+        const mod: any = await getGameMod(self.guildId, self.serverToken, modName);
+        if (mod === undefined) {
             this.discordEmitter.emit('sendGameServerMsg', self.serverName, `${modName} was not found on server`);
+            return;
         }
+
+        const modifiedMod = {
+            guildId: self.guildId,
+            token: self.serverToken,
+            name: mod.data.name,
+            version: mod.data.version,
+            modId: mod.data.modId,
+            activeOn: mod.data.activeOn
+        }
+
+        if (modifiedMod.activeOn.includes(slotId)) {
+            const slotNum = Number(slotId.charAt(slotId.length - 1));
+            modifiedMod.activeOn[slotNum - 1] = '';
+            this.discordEmitter.emit('sendGameServerMsg', self.serverName, `${modName} is now deactivated on ${slotId}`);
+            await updateGameMod(modifiedMod, mod.ref);
+            return;
+        }
+
+        this.discordEmitter.emit('sendGameServerMsg', self.serverName, `${modName} was already inactive on ${slotId}`);
     }
 
     captureConnected() {
@@ -584,9 +545,9 @@ export class ServerManager {
         switch (json.name) {
             case 'saves':
                 // confirm document exists, if it doesnt create it
-                const saves = await getSaves(self.guildId, self.serverToken);
+                let saves: any = await getSaves(self.guildId, self.serverToken);
                 if (saves === undefined) {
-                    await addSaves(self.guildId, self.serverToken);
+                    saves = await addSaves(self.guildId, self.serverToken);
                 }
 
                 // update document
@@ -602,7 +563,7 @@ export class ServerManager {
                     slot7: json.options.slot7,
                     slot8: json.options.slot8,
                     slot9: json.options.slot9,
-                });
+                }, saves.ref);
                 break;
 
             case 'regions':
@@ -623,47 +584,51 @@ export class ServerManager {
     async captureMods(json: any) {
         const self = this;
 
-        // confirm mods document exists
-        let serverMods: any = await getGameMods(self.guildId, self.serverToken);
-        if (serverMods === undefined) {
-            serverMods = await addGameMods(self.guildId, self.serverToken);
-        }
+        // check for mods
+        const response: any = await getGameMods(self.guildId, self.serverToken);
+        if (response !== undefined) {
+            // remove all mods since server is the baseline
+            await removeAllMods(self.guildId, self.serverToken);
 
-        // replace game mods document with the game mods we receive here
-        const updatedModsList: ServerMods = {
-            guildId: self.guildId,
-            token: self.serverToken,
-            mods: []
-        }
+            const knownMods = response.data;
+            let serverMods = json.mods;
 
-        for (const mod of json.mods) {
-            const split = (mod.text as string).trim().split(/ +/);
-            let modVersion = split.pop();
-            let modName = split.join(' ');
-            const found = serverMods.data.mods.find((m: any) => m.name === modName);
-            if (found === undefined) {
-                // mod we dont know about
-                updatedModsList.mods.push({
-                    name: modName === undefined ? 'UnknownName' : modName,
+            for (const mod of serverMods) {
+                const split = (mod.text as string).trim().split(/ +/);
+                const modVersion = split.pop();
+                const modName = split.join(' ');
+                const modId = mod.Id;
+
+                const found = knownMods.data.find((m: any) => m.data.name === modName)
+                await addGameMod({
+                    guildId: self.guildId,
+                    token: self.serverToken,
+                    name: modName,
                     version: modVersion === undefined ? '0' : modVersion,
-                    modId: mod.id,
-                    activeOn: ["slot1", "slot2", "slot3", "slot4", "slot5", "slot6", "slot7", "slot8", "slot9"]
-                });
+                    modId: modId,
+                    activeOn: found === undefined ? self.validSlots : found.activeOn
+                })
             }
-            else {
-                // mod we know about
-                updatedModsList.mods.push({
-                    name: modName === undefined ? 'UnknownName' : modName,
-                    version: modVersion === undefined ? '0' : modVersion,
-                    modId: mod.id,
-                    activeOn: found.activeOn
-                });
-            }
-
         }
+        else {
+            // no mods existed
+            let serverMods = json.mods;
+            for (const mod of serverMods) {
+                const split = (mod.text as string).trim().split(/ +/);
+                const modVersion = split.pop();
+                const modName = split.join(' ');
+                const modId = mod.Id;
 
-        // update document
-        await replaceGameMods(updatedModsList);
+                await addGameMod({
+                    guildId: self.guildId,
+                    token: self.serverToken,
+                    name: modName,
+                    version: modVersion === undefined ? '0' : modVersion,
+                    modId: modId,
+                    activeOn: self.validSlots
+                })
+            }
+        }
     }
 
     captureStarting(json: any): void {

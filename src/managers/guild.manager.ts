@@ -7,7 +7,6 @@ import { ServerManager } from './server.manager';
 import { DiscordMessageEmitter } from '../emitters/discord.message.emitter';
 import { login } from '../helpers/requests';
 import { getServers, getServerByToken, addServer, removeServer } from '../database/server.db';
-import { addGameMods } from '../database/mod.db';
 import { addSaves } from '../database/saves.db';
 import urls from '../data/api.urls.json';
 
@@ -219,7 +218,6 @@ export class GuildManager {
             version: '1.1.27',
             admins: []
         });
-        const modResult = await addGameMods(self.guildId, token);
         const savesResult = await addSaves(self.guildId, token);
 
         // create a server manager

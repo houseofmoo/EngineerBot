@@ -66,12 +66,16 @@ export async function removeSaves(guildId: string, token: string) {
 }
 
 // update saves data
-export async function updateSaves(saveData: ServerSaves) {
+export async function updateSaves(saveData: ServerSaves, ref: any | undefined) {
     try {
-        const slots: any = await getSaves(saveData.guildId, saveData.token);
+        if (ref === undefined) {
+            ref = await getSaves(saveData.guildId, saveData.token);
+            ref = ref.ref;
+        }
+
         return await client.query(
             q.Update(
-                slots.ref,
+                ref,
                 {
                     data: {
                         guildId: saveData.guildId,

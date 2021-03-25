@@ -90,12 +90,13 @@ export async function updateServer(updatedServerData: Server, ref: any | undefin
     try {
         if (ref === undefined) {
             ref = await getServer(updatedServerData.guildId, updatedServerData.token);
+            ref = ref.ref;
         }
         
         //const gameServer: any = await getServer(updatedServerData.guildId, updatedServerData.token);
         return await client.query(
             q.Update(
-                ref.ref,
+                ref,
                 {
                     data: {
                         guildId: updatedServerData.guildId,
