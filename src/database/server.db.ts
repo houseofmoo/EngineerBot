@@ -86,12 +86,16 @@ export async function addServer(newGameServer: Server) {
     }
 }
 
-export async function updateServer(updatedServerData: Server) {
+export async function updateServer(updatedServerData: Server, ref: any | undefined) {
     try {
-        const gameServer: any = await getServer(updatedServerData.guildId, updatedServerData.token);
+        if (ref === undefined) {
+            ref = await getServer(updatedServerData.guildId, updatedServerData.token);
+        }
+        
+        //const gameServer: any = await getServer(updatedServerData.guildId, updatedServerData.token);
         return await client.query(
             q.Update(
-                gameServer.ref,
+                ref.ref,
                 {
                     data: {
                         guildId: updatedServerData.guildId,

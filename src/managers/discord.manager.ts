@@ -72,6 +72,27 @@ export class DiscordManager {
         self.discordEmitter.addListener('sendToGameServerWebHook', self.sendToChannelViaWebhook);
     }
 
+    removeListeners() {
+        const self = this;
+        self.discordEmitter.removeAllListeners('sendManagementMsg');
+        self.discordEmitter.removeAllListeners('sendGameServerMsg');
+        self.discordEmitter.removeAllListeners('sendToGameServerWebHook');
+    }
+
+    async remove() {
+        const self = this;
+        self.removeListeners();
+        for (const chan of self.gameServerChannels) {
+            await self.removeChannel(chan.channel);
+        }
+
+        if (self.managementChannel !== undefined) {
+            await self.removeChannel(self.managementChannel);
+        }
+
+        await self.deleteCategory(config.discord.categoryName);
+    }
+
     sendToManagementChannel(msg: string | discord.MessageEmbed): void {
         const self = this;
         self.managementChannel?.send(msg);
@@ -129,22 +150,26 @@ export class DiscordManager {
         }
     }
 
-    async removeChannel(channelName: string) {
+    getChannel(channelName: string) {
+        const self = this;
+        return self.gameServerChannels.find(gsc => gsc.channel.name.toLowerCase() === channelName.toLowerCase());
+    }
+
+    async removeChannel(channel: discord.Channel) {
         const self = this;
 
         try {
-            // if guild exists...which it should
-            if (self.guild !== undefined) {
+            const localChanRef = self.gameServerChannels.find(gsc => gsc.channel.id === channel.id);
+            if (localChanRef !== undefined) {
+                const index = self.gameServerChannels.indexOf(localChanRef);
 
-                const channel = self.gameServerChannels.find(gsc => gsc.channel.name.toLowerCase() === channelName.toLowerCase());
-                if (channel !== undefined) {
-                    await channel.webhook.delete();
-                    await channel.channel.delete();
-
-                    const index = self.gameServerChannels.indexOf(channel);
+                if (index !== -1) {
                     self.gameServerChannels.splice(index, 1);
                 }
             }
+
+            // delete channel from discord
+            await channel.delete();
         }
         catch (error) {
             console.error(error);
@@ -183,6 +208,31 @@ export class DiscordManager {
                     return await self.guild.channels.create(categoryName, {
                         type: 'category'
                     });
+                }
+            }
+            // we couldn't find the guild...thats weird
+            console.error('We couldnt find the guild we are in...');
+            return undefined;
+        }
+        catch (error) {
+            console.error('Errored out while creating category');
+            console.error(error);
+            return undefined;
+        }
+    }
+
+    // deletes factorio server category
+    private async deleteCategory(categoryName: string) {
+        const self = this;
+
+        try {
+            // if guild exists...which it should since we're in it
+            if (self.guild !== undefined) {
+
+                // find category channel and delete it
+                const exists = self.guild.channels.cache.find(category => category.name === categoryName);
+                if (exists !== undefined) {
+                    await exists.delete()
                 }
             }
             // we couldn't find the guild...thats weird

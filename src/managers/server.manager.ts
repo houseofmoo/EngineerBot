@@ -388,7 +388,7 @@ export class ServerManager {
         }
         updatedServer.admins.push(username);
         this.discordEmitter.emit('sendGameServerMsg', self.serverName, `Adding ${username} to auto promote list`);
-        await updateServer(updatedServer);
+        await updateServer(updatedServer, serverData.ref);
     }
 
     async removePromote(args: string[]) {
@@ -412,7 +412,7 @@ export class ServerManager {
 
         this.discordEmitter.emit('sendGameServerMsg', self.serverName, `Removing ${username} from auto promote list`);
         updatedServer.admins.splice(index, 1);
-        await updateServer(updatedServer);
+        await updateServer(updatedServer, serverData.ref);
     }
 
     async promoteList(args: string[]) {

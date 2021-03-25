@@ -57,6 +57,8 @@ export class GuildManager {
         await Promise.all(self.gameServerManagers.map(async (gsm) => {
             await gsm.remove();
         }));
+
+        await self.discordManager.remove();
     }
 
     receivedMessage(message: discord.Message) {
@@ -289,7 +291,10 @@ export class GuildManager {
          const serverIndex = self.gameServerManagers.indexOf(server);
          self.gameServerManagers.splice(serverIndex, 1);
 
-         self.discordManager.removeChannel(serverName);
+         const channel = self.discordManager.getChannel(serverName);
+         if (channel !== undefined) {
+             self.discordManager.removeChannel(channel.channel);
+         }
          self.discordEmitter.emit('sendManagementMsg', `${serverName} using ${serverToken} removed from server list`);
     }
 
