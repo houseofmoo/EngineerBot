@@ -586,10 +586,9 @@ export class ServerManager {
 
         // check for mods
         const response: any = await getGameMods(self.guildId, self.serverToken);
-        if (response !== undefined) {
+        if (response !== undefined && response.data.length !== 0) {
             // remove all mods since server is the baseline
             await removeAllMods(self.guildId, self.serverToken);
-
             const knownMods = response.data;
             let serverMods = json.mods;
 
