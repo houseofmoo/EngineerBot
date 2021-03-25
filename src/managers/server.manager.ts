@@ -598,15 +598,17 @@ export class ServerManager {
                 const modName = split.join(' ');
                 const modId = mod.Id;
 
-                const found = knownMods.data.find((m: any) => m.data.name === modName)
+                const found = knownMods.find((m: any) => m.data.name === modName)
                 await addGameMod({
                     guildId: self.guildId,
                     token: self.serverToken,
                     name: modName,
                     version: modVersion === undefined ? '0' : modVersion,
                     modId: modId,
-                    activeOn: found === undefined ? self.validSlots : found.activeOn
-                })
+                    activeOn: found === undefined ? // if we didnt find a record use defaults. if record didnt have any active on info, use default
+                                  self.validSlots : found.data.activeOn === undefined ? 
+                                                                      self.validSlots : found.data.activeOn
+                });
             }
         }
         else {

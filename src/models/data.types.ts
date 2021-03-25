@@ -21,12 +21,6 @@ export type ServerSaves = {
     slot9: string;
 }
 
-// export type ServerMods = {
-//     guildId: string;
-//     token: string;
-//     mods: GameMod[];    // list of mods available on server
-// }
-
 export type GameMod = {   
     guildId: string;
     token: string;
