@@ -120,6 +120,14 @@ export class ServerCommands {
                 action: async (commandId: string, args: string[],  message: discord.Message) => { }
             },
             {
+                commandId: ServerCommand.status,
+                minArgCount: 0,
+                maxArgCount: 0,
+                format: `${config.bot.commandPrefix}${ServerCommand.status}`,
+                help: `Current status of server`,
+                action: async (commandId: string, args: string[],  message: discord.Message) => { }
+            },
+            {
                 commandId: ServerCommand.commands,
                 minArgCount: 0,
                 maxArgCount: 0,

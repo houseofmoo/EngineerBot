@@ -250,6 +250,14 @@ export class ServerManager {
     async installMod(commandId: string, args: string[], message: discord.Message) {
         const self = this;
         this.discordEmitter.emit('sendGameServerMsg', self.serverName, 'installing mod: not yet implemented');
+
+        // https://factorio.zone/api/mod/upload
+        // expects a visitSecret, file: (binary), size: number
+        // responds with 200 if OK, websocket sents a type.info that says "uploaded mod <modname>" and "stored mod <modname>"
+        
+
+        // download mod
+        let modName = args[1].trim();
     }
 
     async updateMod(commandId: string, args: string[], message: discord.Message) {
@@ -260,6 +268,9 @@ export class ServerManager {
     async deleteMod(commandId: string, args: string[], message: discord.Message) {
         const self = this;
         this.discordEmitter.emit('sendGameServerMsg', self.serverName, 'deleting mod: not yet implemented');
+
+        // https://factorio.zone/api/mod/delete
+        // expects visitSecret and modId
     }
 
     async activateMod(commandId: string, args: string[], message: discord.Message) {
@@ -649,6 +660,8 @@ export class ServerManager {
 
     async captureMods(json: any) {
         const self = this;
+
+        // when we first connect, or when a mod is uploaded/deleted we receive this event
 
         // check for mods
         const response: any = await getGameMods(self.guildId, self.serverToken);

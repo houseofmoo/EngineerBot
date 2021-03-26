@@ -11,6 +11,8 @@
         "stop" : "https://factorio.zone/api/instance/stop",
         "console" : "https://factorio.zone/api/instance/console",
         "modToggle" : "https://factorio.zone/api/mod/toggle",
+        "modUpload" : "https://factorio.zone/api/mod/upload",
+        "modDelete" : "https://factorio.zone/api/mod/delete",
         "websocket" : "wss://factorio.zone/ws"
     },
     "token" : {
