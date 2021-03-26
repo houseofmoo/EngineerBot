@@ -1,6 +1,8 @@
 import axios from 'axios';
 import qs from 'query-string'
+import fs from 'fs';
 import urls from '../data/api.urls.json';
+import FormData from 'form-data';
 
 // response interceptors -> prevents error out on bad request
 axios.interceptors.response.use(response => {
@@ -9,7 +11,7 @@ axios.interceptors.response.use(response => {
     if (error.response !== undefined) {
         return error.response;
     }
-    
+
     console.log('error did not have response');
     return error;
 });
@@ -74,16 +76,46 @@ export async function promote(visitSecret: string, launchId: string | undefined,
 }
 
 export async function chat(visitSecret: string, launchId: string, username: string, msg: string): Promise<void> {
-    console.log(qs.stringify({
-        visitSecret: visitSecret,
-        launchId: launchId,
-        input: `${username}: ${msg}`
-    }))
     await axios.post(urls.gameServer.console, qs.stringify({
         visitSecret: visitSecret,
         launchId: launchId,
-        input: `${username} ${msg}`
+        input: `${username}: ${msg}`
     })).then((response) => {
         console.log("response code: " + response.status + ' ' + response.statusText);
     })
+}
+
+
+export async function getModAuthToken(username: string, password: string) {
+    return await axios.post(urls.mod.authUrl, qs.stringify({
+        username: username,
+        password: password
+    }));
+}
+
+export async function getModInfo(modName: string) {
+    return await axios.get(urls.mod.apiUrl + modName);
+}
+
+export async function downloadMod(username: string, token: string, subUrl: string) {
+    const downloadUrl = `${urls.mod.websiteUrl}${subUrl}?username=${username}&token=${token}`;
+    // download file to file stream
+    return await axios({
+        url: downloadUrl,
+        method: 'GET',
+        responseType: 'stream'
+    });
+}
+
+export async function uploadModToServer(visitSecret: string, mod: fs.ReadStream) {
+    const form = new FormData();
+    form.append('file', mod);
+    const requestConfig = {
+        headers: {
+            'Authorization': `Bearer ${visitSecret}`,
+            ...form.getHeaders()
+        },
+    }
+
+    return await axios.post(urls.gameServer.modUpload, form, requestConfig);
 }

@@ -1,8 +1,9 @@
 import discord from 'discord.js'
+import fs from 'fs';
 import { ModHandler } from '../helpers/mod.handler';
 import { SocketManager } from './socket.manager';
 import { DiscordMessageEmitter } from '../emitters/discord.message.emitter';
-import { login, startServer, stopServer, chat, promote, enableMod } from '../helpers/requests';
+import { login, startServer, stopServer, chat, promote, enableMod, getModAuthToken, getModInfo, downloadMod, uploadModToServer } from '../helpers/requests';
 import { getServer, updateServer, removeServer } from '../database/server.db';
 import { getGameMods, getGameMod, addGameMod, removeAllMods, updateGameMod } from '../database/mods.db';
 import { addSaves, getSaves, removeSaves, updateSaves } from '../database/saves.db';
@@ -10,6 +11,7 @@ import { Server } from '../models/data.types';
 import { ServerState } from '../models/server.state';
 import { ServerCommand } from '../models/command.id';
 import { ServerCommands } from '../commands/server.commands';
+import config from '../data/config.json'
 
 export class ServerManager {
     readonly guildId: string;
@@ -201,19 +203,19 @@ export class ServerManager {
         // set the new state and emit a message about state change
         switch (self.serverState) {
             case ServerState.Online:
-                this.discordEmitter.emit('pinGameServerMsg', self.serverName, `Online at ${self.serverIp}`);
+                this.discordEmitter.emit('sendGameServerMsg', self.serverName, `Online at ${self.serverIp}`);
                 break;
 
             case ServerState.Offline:
-                this.discordEmitter.emit('pinGameServerMsg', self.serverName, 'Server offline');
+                this.discordEmitter.emit('sendGameServerMsg', self.serverName, 'Server offline');
                 return;
 
             case ServerState.Starting:
-                this.discordEmitter.emit('pinGameServerMsg', self.serverName, 'Server booting up');
+                this.discordEmitter.emit('sendGameServerMsg', self.serverName, 'Server booting up');
                 return;
 
             case ServerState.Stopping:
-                this.discordEmitter.emit('pinGameServerMsg', self.serverName, 'Server shutting down');
+                this.discordEmitter.emit('sendGameServerMsg', self.serverName, 'Server shutting down');
                 return;
         }
     }
@@ -251,13 +253,46 @@ export class ServerManager {
         const self = this;
         this.discordEmitter.emit('sendGameServerMsg', self.serverName, 'installing mod: not yet implemented');
 
+
         // https://factorio.zone/api/mod/upload
         // expects a visitSecret, file: (binary), size: number
         // responds with 200 if OK, websocket sents a type.info that says "uploaded mod <modname>" and "stored mod <modname>"
-        
 
-        // download mod
-        let modName = args[1].trim();
+
+        // // download mod
+        // let modName = args[0].trim();
+
+        // // get auth token
+        // const token: any = await getModAuthToken(config.factorioModsLogin.username, config.factorioModsLogin.password);
+
+        // // get download url
+        // let infoResponse: any = await getModInfo(modName);
+
+        // if (infoResponse !== undefined && token !== undefined) {
+        //     console.log('attempting download');
+        //     // build download url
+        //     const subUrl = infoResponse.data.releases[0].download_url;
+        //     const filename = infoResponse.data.releases[0].file_name
+
+        //     // download file
+        //     const file = fs.createWriteStream(filename);
+        //     const download: any = await downloadMod(config.factorioModsLogin.username, token.data[0], subUrl);
+        //     await download.data.pipe(file);
+        //     console.log('download complete');
+        //     // upload to server
+        //     const mod = fs.createReadStream(filename);
+        //     const t = mod.read(mod.bytesRead);
+        //     mod.on('end', async () => {
+        //         console.log('read stream end');
+        //         const uploadResponse = await uploadModToServer(self.visitSecret, mod);
+        //         console.log(uploadResponse);
+        //         // delete local file
+        //         // fs.unlinkSync(filename, (err) => {
+        //         //     console.log(err);
+        //         //     console.log('error deleting file');
+        //         // });
+        //     })
+        // }
     }
 
     async updateMod(commandId: string, args: string[], message: discord.Message) {
@@ -411,7 +446,7 @@ export class ServerManager {
                 // activate mods appropriate for slot
                 const mods: any = await getGameMods(self.guildId, self.serverToken);
                 if (mods != undefined) {
-                    self.discordEmitter.emit('sendGameServerMsg', self.serverName, `Ennabling mods for ${slotId}`);
+                    self.discordEmitter.emit('sendGameServerMsg', self.serverName, `Enabling mods for ${slotId}`);
                     const requests = [];
                     for (const mod of mods.data) {
                         if (mod.data.activeOn.includes(slotId)) {
@@ -759,13 +794,20 @@ export class ServerManager {
         if (self.previousLog === json.line) {
             return;
         }
+        // capture log to check in the future
+        self.previousLog = json.line;
 
+        // handle specific events we care about
         if (json.line.includes('[JOIN]')) {
+            // TODO: auto promote does not work!
             const serverData: any = await getServer(self.guildId, self.serverToken);
+            console.log(serverData);
             if (serverData !== undefined) {
                 // search for a valid user name in the text
                 const words = json.line.split(' ');
+                console.log(words);
                 for (const word in words) {
+                    console.log(word);
                     if (serverData.data.admins.includes(word.toLowerCase())) {
                         await promote(self.visitSecret, self.launchId, word);
                     }
@@ -776,10 +818,10 @@ export class ServerManager {
         }
         // things we care about, ignore everything else
         else if (json.line.includes('[LEAVE]') ||
-                 json.line.includes('[CHAT]') ||
-                 json.line.includes('already an admin') ||
-                 json.line.includes('[PROMOTE]') ||
-                 json.line.includes('[COMMAND]')) {
+            json.line.includes('[CHAT]') ||
+            json.line.includes('already an admin') ||
+            json.line.includes('[PROMOTE]') ||
+            json.line.includes('[COMMAND]')) {
 
             // ignore pings on land and pings on train... want to ignore all pings but this is good enough
             if (json.line.includes('[gps=') || json.line.includes('[train=')) {
@@ -788,8 +830,6 @@ export class ServerManager {
 
             self.discordEmitter.emit('sendGameServerMsg', self.serverName, json.line);
         }
-
-        self.previousLog = json.line;
     }
 
     captureConsole(json: any): void {

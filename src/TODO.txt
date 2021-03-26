@@ -1,0 +1,4 @@
+mod install/delete
+debug auto promote
+when creating server channels, make them invite only and invite the user that created the channels
+add voice channels for each server
