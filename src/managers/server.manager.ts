@@ -401,7 +401,6 @@ export class ServerManager {
                     self.discordEmitter.emit('sendGameServerMsg', self.serverName, `Ennabling mods for ${slotId}`);
                     const requests = [];
                     for (const mod of mods.data) {
-                        console.log(mod);
                         if (mod.data.activeOn.includes(slotId)) {
                             requests.push(enableMod(self.visitSecret, mod.data.modId, true));
                         }
@@ -596,7 +595,7 @@ export class ServerManager {
 
     async captureVisit(json: any) {
         const self = this;
-        console.log('captured visit');
+        //console.log('captured visit');
         self.visitSecret = json.secret;
         if (self.visitSecret !== undefined) {
             await login(self.visitSecret, self.serverToken)
@@ -631,11 +630,11 @@ export class ServerManager {
                 break;
 
             case 'regions':
-                console.log('capture regions');
+                //console.log('capture regions');
                 break;
 
             case 'versions':
-                console.log('capture versions');
+                //console.log('capture versions');
                 break;
         }
     }
@@ -710,9 +709,9 @@ export class ServerManager {
 
     captureRunning(json: any): void {
         const self = this;
-        self.setState(ServerState.Online);
         self.launchId = json.launchId;
         self.serverIp = json.socket;
+        self.setState(ServerState.Online);
     }
 
     captureStopping(json: any): void {

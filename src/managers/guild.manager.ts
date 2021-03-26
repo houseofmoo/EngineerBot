@@ -49,9 +49,6 @@ export class GuildManager {
             const gsm = new ServerManager(self.guildId, server.data.name, server.data.token, self.discordEmitter);
             self.gameServerManagers.push(gsm);
         }
-
-        console.log(this.gameServerManagers);
-
     }
 
     addActions() {
