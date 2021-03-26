@@ -51,7 +51,7 @@ export class ServerManager {
         this.socketHandler.connect();
     }
 
-    addListeners() {
+    private addListeners() {
         this.captureConnected = this.captureConnected.bind(this);
         this.socketHandler.socketEmitter.addListener('websocketConnected', this.captureConnected);
 
@@ -98,7 +98,7 @@ export class ServerManager {
         this.socketHandler.socketEmitter.addListener('receivedIdle', this.captureIdle);
     }
 
-    addActions() {
+    private addActions() {
         const self = this;
         self.listSaves = self.listSaves.bind(self);
         self.serverCommands.addServerAction(ServerCommand.saves, self.listSaves);
@@ -146,7 +146,7 @@ export class ServerManager {
         self.serverCommands.addServerAction(ServerCommand.status, self.status);
     }
 
-    removeListeners() {
+    private removeListeners() {
         this.socketHandler.socketEmitter.removeAllListeners('websocketConnected');
         this.socketHandler.socketEmitter.removeAllListeners('websocketConnectionFail');
         this.socketHandler.socketEmitter.removeAllListeners('websocketError');
@@ -162,6 +162,11 @@ export class ServerManager {
         this.socketHandler.socketEmitter.removeAllListeners('receivedLog');
         this.socketHandler.socketEmitter.removeAllListeners('receivedConsole');
         this.socketHandler.socketEmitter.removeAllListeners('receivedIdle');
+    }
+
+    private isValidSlot(slotId: string) {
+        const self = this;
+        return self.validSlots.includes(slotId)
     }
 
     async handleCommand(commandId: string, args: string[], message: discord.Message) {
@@ -188,6 +193,29 @@ export class ServerManager {
         command.action(commandId, args, message);
     }
 
+    private setState(newState: ServerState) {
+        const self = this;
+        self.serverState = newState;
+        // set the new state and emit a message about state change
+        switch (self.serverState) {
+            case ServerState.Online:
+                this.discordEmitter.emit('pinGameServerMsg', self.serverName, `Online at ${self.serverIp}`);
+                break;
+
+            case ServerState.Offline:
+                this.discordEmitter.emit('pinGameServerMsg', self.serverName, 'Server offline');
+                return;
+
+            case ServerState.Starting:
+                this.discordEmitter.emit('pinGameServerMsg', self.serverName, 'Server booting up');
+                return;
+
+            case ServerState.Stopping:
+                this.discordEmitter.emit('pinGameServerMsg', self.serverName, 'Server shutting down');
+                return;
+        }
+    }
+
     async remove() {
         const self = this;
         self.removeListeners();
@@ -195,11 +223,6 @@ export class ServerManager {
         await removeSaves(self.guildId, self.serverToken);
         await removeServer(self.guildId, self.serverToken);
         self.socketHandler.endConnection();
-    }
-
-    isValidSlot(slotId: string) {
-        const self = this;
-        return self.validSlots.includes(slotId)
     }
 
     async listSaves(commandId: string, args: string[], message: discord.Message) {
@@ -681,25 +704,22 @@ export class ServerManager {
 
     captureStarting(json: any): void {
         const self = this;
-        self.serverState = ServerState.Starting;
+        self.setState(ServerState.Starting);
         self.launchId = json.launchId;
-        self.discordEmitter.emit('sendGameServerMsg', self.serverName, `Server is spinning up`);
     }
 
     captureRunning(json: any): void {
         const self = this;
-        self.serverState = ServerState.Online;
+        self.setState(ServerState.Online);
         self.launchId = json.launchId;
         self.serverIp = json.socket;
-        self.discordEmitter.emit('sendGameServerMsg', self.serverName, `Server online at ${json.socket}`);
     }
 
     captureStopping(json: any): void {
         const self = this;
-        self.serverState = ServerState.Stopping;
+        self.setState(ServerState.Stopping);
         self.serverIp = '';
         self.launchId = '';
-        self.discordEmitter.emit('sendGameServerMsg', self.serverName, `Server shutting down`);
     }
 
     captureInfo(json: any): void {
@@ -707,10 +727,9 @@ export class ServerManager {
 
         switch (json.line) {
             case 'ready':
-                self.serverState = ServerState.Offline;
+                self.setState(ServerState.Offline);
                 self.serverIp = '';
                 self.launchId = '';
-                self.discordEmitter.emit('sendGameServerMsg', self.serverName, `Server offline`);
                 break;
 
             case 'provisioning virtual machine, this will take an extra minute':
@@ -723,9 +742,9 @@ export class ServerManager {
         const self = this;
 
         // TODO: double send bug is back, need to filter shit out
-        
+
         // ignore log message more than 1 minute old
-        if (new Date().getTime() - json.time > 60000) { 
+        if (new Date().getTime() - json.time > 60000) {
             return;
         }
 

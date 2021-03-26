@@ -70,6 +70,9 @@ export class DiscordManager {
 
         self.sendToChannelViaWebhook = self.sendToChannelViaWebhook.bind(self);
         self.discordEmitter.addListener('sendToGameServerWebHook', self.sendToChannelViaWebhook);
+
+        self.sendAndPinToChannel = self.sendAndPinToChannel.bind(self);
+        self.discordEmitter.addListener('pinGameServerMsg', self.sendAndPinToChannel);
     }
 
     removeListeners() {
@@ -102,6 +105,12 @@ export class DiscordManager {
         const self = this;
         const channelInfo = self.gameServerChannels.find(chan => chan.channel.name.toLowerCase() === serverName.toLowerCase());
         channelInfo?.channel.send(msg);
+    }
+
+    sendAndPinToChannel(serverName: string, msg: string | discord.MessageEmbed) {
+        const self = this;
+        const channelInfo = self.gameServerChannels.find(chan => chan.channel.name.toLowerCase() === serverName.toLowerCase());
+        channelInfo?.channel.send(msg).then((msg) => msg.pin());
     }
 
     sendToChannelViaWebhook(serverName: string, msg: string | discord.MessageEmbed, username: string): void {
