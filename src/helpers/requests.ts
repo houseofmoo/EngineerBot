@@ -53,9 +53,9 @@ export async function stopServer(visitSecret: string, launchId: string): Promise
 export async function enableMod(visitSecret: string, modId: string, enabled: boolean): Promise<void> {
     //let form = `visitSecret=${visitSecret}&modId=${modId}&enabled=${enabled}`;
     await axios.post(urls.gameServer.modToggle, qs.stringify({
-        visitSecret,
-        modId,
-        enabled
+        visitSecret: visitSecret,
+        modId: modId,
+        enabled: enabled
     })).then((response) => {
         console.log("response code: " + response.status + ' ' + response.statusText);
     })

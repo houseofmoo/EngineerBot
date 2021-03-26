@@ -372,8 +372,10 @@ export class ServerManager {
                 // activate mods appropriate for slot
                 const mods: any = await getGameMods(self.guildId, self.serverToken);
                 if (mods != undefined) {
+                    self.discordEmitter.emit('sendGameServerMsg', self.serverName, `Ennabling mods for ${slotId}`);
                     const requests = [];
                     for (const mod of mods.data) {
+                        console.log(mod);
                         if (mod.data.activeOn.includes(slotId)) {
                             requests.push(enableMod(self.visitSecret, mod.data.modId, true));
                         }
@@ -382,6 +384,7 @@ export class ServerManager {
                         }
                     }
 
+                    // send request
                     await Promise.all(requests);
                 }
 
@@ -603,16 +606,17 @@ export class ServerManager {
             // remove all mods since server is the baseline
             await removeAllMods(self.guildId, self.serverToken);
             const knownMods = response.data;
-            let serverMods = json.mods;
+            const serverMods = json.mods;
+            const requests = [];
 
             for (const mod of serverMods) {
                 const split = (mod.text as string).trim().split(/ +/);
                 const modVersion = split.pop();
                 const modName = split.join(' ');
-                const modId = mod.Id;
+                const modId = mod.id;
 
                 const found = knownMods.find((m: any) => m.data.name === modName)
-                await addGameMod({
+                requests.push(addGameMod({
                     guildId: self.guildId,
                     token: self.serverToken,
                     name: modName,
@@ -621,27 +625,32 @@ export class ServerManager {
                     activeOn: found === undefined ? // if we didnt find a record use defaults. if record didnt have any active on info, use default
                         self.validSlots : found.data.activeOn === undefined ?
                             self.validSlots : found.data.activeOn
-                });
+                }));
             }
+
+            await Promise.all(requests);
         }
         else {
             // no mods existed
-            let serverMods = json.mods;
+            const serverMods = json.mods;
+            const requests = [];
             for (const mod of serverMods) {
                 const split = (mod.text as string).trim().split(/ +/);
                 const modVersion = split.pop();
                 const modName = split.join(' ');
-                const modId = mod.Id;
+                const modId = mod.id;
 
-                await addGameMod({
+                requests.push(addGameMod({
                     guildId: self.guildId,
                     token: self.serverToken,
                     name: modName,
                     version: modVersion === undefined ? '0' : modVersion,
                     modId: modId,
                     activeOn: self.validSlots
-                })
+                }));
             }
+
+            await Promise.all(requests);
         }
     }
 
