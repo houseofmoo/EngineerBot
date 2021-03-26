@@ -1,15 +1,15 @@
 import discord from 'discord.js'
-import { EOL } from 'os';
 import { ModHandler } from '../helpers/mod.handler';
 import { SocketManager } from './socket.manager';
 import { DiscordMessageEmitter } from '../emitters/discord.message.emitter';
-import { getServerCommand, getServerCommands, getServerCommandHelp } from '../helpers/commands'
-import { login, startServer, stopServer, chat, promote } from '../helpers/requests';
+import { getServerCommand, getServerCommands, getServerCommandHelp, addServerAction } from '../helpers/commands'
+import { login, startServer, stopServer, chat, promote, enableMod } from '../helpers/requests';
 import { getServer, updateServer, removeServer } from '../database/server.db';
 import { getGameMods, getGameMod, addGameMod, removeGameMod, removeAllMods, updateGameMod } from '../database/mods.db';
 import { addSaves, getSaves, removeSaves, updateSaves } from '../database/saves.db';
-import { Server, GameMod } from '../models/data.types';
+import { Server } from '../models/data.types';
 import { ServerState } from '../models/server.state';
+import { ServerCommand } from '../models/command.id';
 
 // mananges a single game server for guild
 export class ServerManager {
@@ -43,6 +43,7 @@ export class ServerManager {
         this.socketHandler = new SocketManager(this.serverToken);
         this.discordEmitter = discordEmitter;
 
+        this.addActions();
         this.addListeners();
         this.socketHandler.connect();
     }
@@ -94,6 +95,51 @@ export class ServerManager {
         this.socketHandler.socketEmitter.addListener('receivedIdle', this.captureIdle);
     }
 
+    addActions() {
+        const self = this;
+        self.listSaves = self.listSaves.bind(self);
+        addServerAction(ServerCommand.saves, self.listSaves);
+
+        self.installMod = self.installMod.bind(self);
+        addServerAction(ServerCommand.modinstall, self.installMod);
+
+        self.updateMod = self.updateMod.bind(self);
+        addServerAction(ServerCommand.modupdate, self.updateMod);
+        
+        self.deleteMod = self.deleteMod.bind(self);
+        addServerAction(ServerCommand.moddelete, self.deleteMod);
+
+        self.activateMod = self.activateMod.bind(self);
+        addServerAction(ServerCommand.modon, self.activateMod);
+
+        self.deactivateMod = self.deactivateMod.bind(self);
+        addServerAction(ServerCommand.modoff, self.deactivateMod);
+
+        self.listMods = self.listMods.bind(self);
+        addServerAction(ServerCommand.mods, self.listMods);
+
+        self.serverStart = self.serverStart.bind(self);
+        addServerAction(ServerCommand.start, self.serverStart);
+
+        self.serverStop = self.serverStop.bind(self);
+        addServerAction(ServerCommand.stop, self.serverStop);
+
+        self.sendMessage = self.sendMessage.bind(self);
+        addServerAction(ServerCommand.msg, self.sendMessage);
+
+        self.promote = self.promote.bind(self);
+        addServerAction(ServerCommand.promote, self.promote);
+
+        self.addPromote = self.addPromote.bind(self);
+        addServerAction(ServerCommand.promoteadd, self.addPromote);
+
+        self.removePromote = self.removePromote.bind(self);
+        addServerAction(ServerCommand.promoteremove, self.removePromote);
+
+        self.promoteList = self.promoteList.bind(self);
+        addServerAction(ServerCommand.promotelist, self.promoteList);
+    }
+
     removeListeners() {
         this.socketHandler.socketEmitter.removeAllListeners('websocketConnected');
         this.socketHandler.socketEmitter.removeAllListeners('websocketConnectionFail');
@@ -121,86 +167,19 @@ export class ServerManager {
             this.discordEmitter.emit('sendGameServerMsg', self.serverName, `I do not know how to do that: ${commandId}`);
             return;
         }
-        else if (command.argCount !== args.length) {
-            // special cases
-            if (command.commandId === 'msg' && args.length >= command.argCount) {
-                // we're good, arg is a array of words that make up chat message, size just has to be greater than 1
-            }
-            else if (command.commandId === 'mod-activate' && args.length >= command.argCount) {
-                // we're good, 1 arg is slotId, 2nd arg is name which will be an arbitrary length
-            }
-            else if (command.commandId === 'mod-deactivate' && args.length >= command.argCount) {
-                // we're good, 1 arg is slotId, 2nd arg is name which will be an arbitrary length
-            }
-            else {
-                this.discordEmitter.emit('sendGameServerMsg', self.serverName, getServerCommandHelp(commandId));
-                return;
-            }
+        else if (args.length < command.minArgCount || args.length > command.maxArgCount) {
+            this.discordEmitter.emit('sendGameServerMsg', self.serverName, getServerCommandHelp(commandId));
+            return;
         }
 
-        switch (commandId) {
-            case 'save-list':
-                self.listSaves(args);
-                break;
-
-            case 'mod-install':
-                self.installMod(args);
-                break;
-
-            case 'mod-delete':
-                self.deleteMod(args);
-                break;
-
-            case 'mod-list':
-                self.listMods(args);
-                break;
-
-            case 'mod-update':
-                self.updateMod(args);
-                break;
-
-            case 'start':
-                self.serverStart(args)
-                break;
-
-            case 'stop':
-                self.serverStop();
-                break;
-
-            case 'msg':
-                self.sendMessage(args, message.author.username);
-                break;
-
-            case 'promote':
-                self.promote(args);
-                break;
-
-            case 'promote-add':
-                self.addPromote(args);
-                break;
-
-            case 'promote-remove':
-                self.removePromote(args);
-                break;
-
-            case 'promote-list':
-                self.promoteList(args);
-                break;
-
-            case 'mod-activate':
-                self.activateMod(args);
-                break;
-
-            case 'mod-deactivate':
-                self.deactivateMod(args);
-                break;
-
-            case 'commands':
-            // TODO: send a list of command specific to server channels (commands we handle here)
-            default:
-                this.discordEmitter.emit('sendGameServerMsg', self.serverName, getServerCommands());
-                break;
+        // if user is asking for a list of commands
+        if (command.commandId === ServerCommand.commands) {
+            this.discordEmitter.emit('sendGameServerMsg', self.serverName, getServerCommands());
+            return;
         }
+
+        // perform requested action
+        command.action(commandId, args, message);
     }
 
     async remove() {
@@ -217,7 +196,7 @@ export class ServerManager {
         return self.validSlots.includes(slotId)
     }
 
-    async listSaves(args: string[]) {
+    async listSaves(commandId: string, args: string[], message: discord.Message) {
         const self = this;
         const saves: any = await getSaves(self.guildId, self.serverToken);
 
@@ -237,196 +216,33 @@ export class ServerManager {
         this.discordEmitter.emit('sendGameServerMsg', self.serverName, savesEmbed);
     }
 
-    installMod(args: string[]): void {
+    async installMod(commandId: string, args: string[], message: discord.Message) {
         const self = this;
         this.discordEmitter.emit('sendGameServerMsg', self.serverName, 'installing mod: not yet implemented');
     }
 
-    deleteMod(args: string[]): void {
-        const self = this;
-        this.discordEmitter.emit('sendGameServerMsg', self.serverName, 'deleting mod: not yet implemented');
-    }
-
-    async listMods(args: string[]) {
-        const self = this;
-        const mods: any = await getGameMods(self.guildId, self.serverToken);
-
-        const modEmbed = new discord.MessageEmbed();
-        modEmbed.setColor('#0099ff');
-        modEmbed.setTitle('Server Mods');
-
-        if (mods.data.mods.length === 0) {
-            modEmbed.addField('No mods available', `install a mod with !mod-install modName`);
-        }
-        else {
-            for (const mod of mods.data.mods) {
-                modEmbed.addField(`${mod.name} ${mod.version}`, mod.activeOn.filter((m: any) => m !== '').join(', '));
-            }
-        }
-
-        this.discordEmitter.emit('sendGameServerMsg', self.serverName, modEmbed);
-    }
-
-    updateMod(args: string[]): void {
+    async updateMod(commandId: string, args: string[], message: discord.Message) {
         const self = this;
         this.discordEmitter.emit('sendGameServerMsg', self.serverName, 'updating mod: not yet implemented');
     }
 
-    async serverStart(args: string[]) {
+    async deleteMod(commandId: string, args: string[], message: discord.Message) {
         const self = this;
-
-        const slotId = args[0];
-        if (!self.isValidSlot(slotId)) {
-            this.discordEmitter.emit('sendGameServerMsg', self.serverName, `${slotId} is not a valid slot`);
-            return;
-        }
-
-        // confirm connected to socket
-        if (self.visitSecret === '') {
-            self.discordEmitter.emit('sendGameServerMsg', self.serverName, 'Disconnected from game servers, reconnecting. Attempt server start after a few seconds');
-            this.socketHandler.connect();
-            return;
-        }
-
-        switch (self.serverState) {
-            case ServerState.Online:
-                self.discordEmitter.emit('sendGameServerMsg', self.serverName, `Server online at ${self.serverIp}`);
-                return;
-
-            case ServerState.Offline:
-                await startServer(self.visitSecret, 'us-west', slotId, '1.1.27');
-                return;
-
-            case ServerState.Starting:
-                self.discordEmitter.emit('sendGameServerMsg', self.serverName, 'Server is starting up');
-                return;
-
-            case ServerState.Stopping:
-                self.discordEmitter.emit('sendGameServerMsg', self.serverName, 'Server is shutting down. Please wait for shutdown before requesting server launch');
-                return;
-        }
+        this.discordEmitter.emit('sendGameServerMsg', self.serverName, 'deleting mod: not yet implemented');
     }
 
-    async serverStop() {
-        const self = this;
-        switch (self.serverState) {
-            case ServerState.Online:
-                await stopServer(self.visitSecret, self.launchId);
-                return;
-
-            case ServerState.Offline:
-                self.discordEmitter.emit('sendGameServerMsg', self.serverName, 'Server offline');
-                return;
-
-            case ServerState.Starting:
-                self.discordEmitter.emit('sendGameServerMsg', self.serverName, 'Please wait for server to finish starting before attempting to shutdown');
-                return;
-
-            case ServerState.Stopping:
-                self.discordEmitter.emit('sendGameServerMsg', self.serverName, 'Shutdown process is underway');
-                return;
-        }
-    }
-
-    sendMessage(args: string[], username: string): void {
-        const self = this;
-        switch (self.serverState) {
-            case ServerState.Online:
-                chat(self.visitSecret, self.launchId, username, args.join(' '));
-                break;
-
-            case ServerState.Offline:
-                this.discordEmitter.emit('sendGameServerMsg', self.serverName, 'Server offline');
-                return;
-
-            case ServerState.Starting:
-                this.discordEmitter.emit('sendGameServerMsg', self.serverName, 'Server booting up');
-                return;
-
-            case ServerState.Stopping:
-                this.discordEmitter.emit('sendGameServerMsg', self.serverName, 'Server shutting down');
-                return;
-        }
-    }
-
-    promote(args: string[]): void {
-        const self = this;
-        const username = args[0];
-
-        switch (self.serverState) {
-            case ServerState.Online:
-                promote(self.visitSecret, self.launchId, username);
-                this.discordEmitter.emit('sendGameServerMsg', self.serverName, `Promoting user ${username} to server admin`);
-                break;
-
-            case ServerState.Offline:
-                this.discordEmitter.emit('sendGameServerMsg', self.serverName, 'Server offline');
-                return;
-
-            case ServerState.Starting:
-                this.discordEmitter.emit('sendGameServerMsg', self.serverName, 'Server booting up');
-                return;
-
-            case ServerState.Stopping:
-                this.discordEmitter.emit('sendGameServerMsg', self.serverName, 'Server shutting down');
-                return;
-        }
-    }
-
-    async addPromote(args: string[]) {
-        const self = this;
-        const username = args[0];
-        const serverData: any = await getServer(self.guildId, self.serverToken);
-
-        const updatedServer: Server = {
-            guildId: self.guildId,
-            name: self.serverName,
-            token: self.serverToken,
-            region: 'us-west',
-            version: '1.1.27',
-            admins: serverData.data.admins,
-        }
-        updatedServer.admins.push(username);
-        this.discordEmitter.emit('sendGameServerMsg', self.serverName, `Adding ${username} to auto promote list`);
-        await updateServer(updatedServer, serverData.ref);
-    }
-
-    async removePromote(args: string[]) {
-        const self = this;
-        const username = args[0];
-        const serverData: any = await getServer(self.guildId, self.serverToken);
-
-        const updatedServer: Server = {
-            guildId: self.guildId,
-            name: self.serverName,
-            token: self.serverToken,
-            region: 'us-west',
-            version: '1.1.27',
-            admins: serverData.data.admins,
-        }
-        const index = updatedServer.admins.indexOf(username);
-        if (index === -1) {
-            this.discordEmitter.emit('sendGameServerMsg', self.serverName, `${username} is not on the promote list`);
-            return;
-        }
-
-        this.discordEmitter.emit('sendGameServerMsg', self.serverName, `Removing ${username} from auto promote list`);
-        updatedServer.admins.splice(index, 1);
-        await updateServer(updatedServer, serverData.ref);
-    }
-
-    async promoteList(args: string[]) {
-        const self = this;
-        const serverData: any = await getServer(self.guildId, self.serverToken);
-        const promotable = serverData.data.admins;
-        this.discordEmitter.emit('sendGameServerMsg', self.serverName, promotable.join(', '));
-    }
-
-    async activateMod(args: string[]) {
+    async activateMod(commandId: string, args: string[], message: discord.Message) {
         const self = this;
 
         const slotId = args.shift();
         const modName = args.join(' ');
+        console.log(modName);
+        let multipleMods = [];
+        if (modName.includes(',')) {
+            multipleMods = modName.split(',');
+            console.log(multipleMods);
+            return;
+        }
 
         // confirm valid slot
         if (slotId === undefined || !self.isValidSlot(slotId)) {
@@ -461,7 +277,7 @@ export class ServerManager {
         this.discordEmitter.emit('sendGameServerMsg', self.serverName, `${modName} was already active on ${slotId}`);
     }
 
-    async deactivateMod(args: string[]) {
+    async deactivateMod(commandId: string, args: string[], message: discord.Message) {
         const self = this;
 
         const slotId = args.shift();
@@ -498,6 +314,198 @@ export class ServerManager {
         }
 
         this.discordEmitter.emit('sendGameServerMsg', self.serverName, `${modName} was already inactive on ${slotId}`);
+    }
+
+    async listMods(commandId: string, args: string[], message: discord.Message) {
+        const self = this;
+        const mods: any = await getGameMods(self.guildId, self.serverToken);
+
+        const modEmbed = new discord.MessageEmbed();
+        modEmbed.setColor('#0099ff');
+        modEmbed.setTitle(`Server Mods`);
+
+        if (mods !== undefined) {
+            if (mods.data.length !== 0) {
+                modEmbed.setTitle(`Server Mods (${mods.data.length})`);
+                for (const mod of mods.data) {
+                    modEmbed.addField(`${mod.data.name} ${mod.data.version}`, mod.data.activeOn.filter((m: any) => m !== '').join(', '));
+                }
+
+                this.discordEmitter.emit('sendGameServerMsg', self.serverName, modEmbed);
+            }
+            else {
+                modEmbed.addField('No mods available', `install a mod with !mod-install modName`);
+            }
+        }
+        else {
+            this.discordEmitter.emit('sendGameServerMsg', self.serverName, 'Unable to get find mods in database');
+        }
+    }
+
+    async serverStart(commandId: string, args: string[], message: discord.Message) {
+        const self = this;
+
+        const slotId = args[0];
+        if (!self.isValidSlot(slotId)) {
+            this.discordEmitter.emit('sendGameServerMsg', self.serverName, `${slotId} is not a valid slot`);
+            return;
+        }
+
+        // confirm connected to socket
+        if (self.visitSecret === '') {
+            self.discordEmitter.emit('sendGameServerMsg', self.serverName, 'Disconnected from game servers, reconnecting. Attempt server start after a few seconds');
+            this.socketHandler.connect();
+            return;
+        }
+
+        switch (self.serverState) {
+            case ServerState.Online:
+                self.discordEmitter.emit('sendGameServerMsg', self.serverName, `Server online at ${self.serverIp}`);
+                return;
+
+            case ServerState.Offline:
+                // activate mods appropriate for slot
+                const mods: any = await getGameMods(self.guildId, self.serverToken);
+                if (mods != undefined) {
+                    const requests = [];
+                    for (const mod of mods.data) {
+                        if (mod.data.activeOn.includes(slotId)) {
+                            requests.push(enableMod(self.visitSecret, mod.data.modId, true));
+                        }
+                        else {
+                            requests.push(enableMod(self.visitSecret, mod.data.modId, false));
+                        }
+                    }
+
+                    await Promise.all(requests);
+                }
+
+                await startServer(self.visitSecret, 'us-west', slotId, '1.1.27');
+                return;
+
+            case ServerState.Starting:
+                self.discordEmitter.emit('sendGameServerMsg', self.serverName, 'Server is starting up');
+                return;
+
+            case ServerState.Stopping:
+                self.discordEmitter.emit('sendGameServerMsg', self.serverName, 'Server is shutting down. Please wait for shutdown before requesting server launch');
+                return;
+        }
+    }
+
+    async serverStop(commandId: string, args: string[], message: discord.Message) {
+        const self = this;
+        switch (self.serverState) {
+            case ServerState.Online:
+                await stopServer(self.visitSecret, self.launchId);
+                return;
+
+            case ServerState.Offline:
+                self.discordEmitter.emit('sendGameServerMsg', self.serverName, 'Server offline');
+                return;
+
+            case ServerState.Starting:
+                self.discordEmitter.emit('sendGameServerMsg', self.serverName, 'Please wait for server to finish starting before attempting to shutdown');
+                return;
+
+            case ServerState.Stopping:
+                self.discordEmitter.emit('sendGameServerMsg', self.serverName, 'Shutdown process is underway');
+                return;
+        }
+    }
+
+    async sendMessage(commandId: string, args: string[], message: discord.Message) {
+        const self = this;
+        switch (self.serverState) {
+            case ServerState.Online:
+                chat(self.visitSecret, self.launchId, message.author.username, args.join(' '));
+                break;
+
+            case ServerState.Offline:
+                this.discordEmitter.emit('sendGameServerMsg', self.serverName, 'Server offline');
+                return;
+
+            case ServerState.Starting:
+                this.discordEmitter.emit('sendGameServerMsg', self.serverName, 'Server booting up');
+                return;
+
+            case ServerState.Stopping:
+                this.discordEmitter.emit('sendGameServerMsg', self.serverName, 'Server shutting down');
+                return;
+        }
+    }
+
+    async promote(commandId: string, args: string[], message: discord.Message) {
+        const self = this;
+        const username = args[0];
+
+        switch (self.serverState) {
+            case ServerState.Online:
+                promote(self.visitSecret, self.launchId, username);
+                this.discordEmitter.emit('sendGameServerMsg', self.serverName, `Promoting user ${username} to server admin`);
+                break;
+
+            case ServerState.Offline:
+                this.discordEmitter.emit('sendGameServerMsg', self.serverName, 'Server offline');
+                return;
+
+            case ServerState.Starting:
+                this.discordEmitter.emit('sendGameServerMsg', self.serverName, 'Server booting up');
+                return;
+
+            case ServerState.Stopping:
+                this.discordEmitter.emit('sendGameServerMsg', self.serverName, 'Server shutting down');
+                return;
+        }
+    }
+
+    async addPromote(commandId: string, args: string[], message: discord.Message) {
+        const self = this;
+        const username = args[0];
+        const serverData: any = await getServer(self.guildId, self.serverToken);
+
+        const updatedServer: Server = {
+            guildId: self.guildId,
+            name: self.serverName,
+            token: self.serverToken,
+            region: 'us-west',
+            version: '1.1.27',
+            admins: serverData.data.admins,
+        }
+        updatedServer.admins.push(username);
+        this.discordEmitter.emit('sendGameServerMsg', self.serverName, `Adding ${username} to auto promote list`);
+        await updateServer(updatedServer, serverData.ref);
+    }
+
+    async removePromote(commandId: string, args: string[], message: discord.Message) {
+        const self = this;
+        const username = args[0];
+        const serverData: any = await getServer(self.guildId, self.serverToken);
+
+        const updatedServer: Server = {
+            guildId: self.guildId,
+            name: self.serverName,
+            token: self.serverToken,
+            region: 'us-west',
+            version: '1.1.27',
+            admins: serverData.data.admins,
+        }
+        const index = updatedServer.admins.indexOf(username);
+        if (index === -1) {
+            this.discordEmitter.emit('sendGameServerMsg', self.serverName, `${username} is not on the promote list`);
+            return;
+        }
+
+        this.discordEmitter.emit('sendGameServerMsg', self.serverName, `Removing ${username} from auto promote list`);
+        updatedServer.admins.splice(index, 1);
+        await updateServer(updatedServer, serverData.ref);
+    }
+
+    async promoteList(commandId: string, args: string[], message: discord.Message) {
+        const self = this;
+        const serverData: any = await getServer(self.guildId, self.serverToken);
+        const promotable = serverData.data.admins;
+        this.discordEmitter.emit('sendGameServerMsg', self.serverName, promotable.join(', '));
     }
 
     captureConnected() {
@@ -606,8 +614,8 @@ export class ServerManager {
                     version: modVersion === undefined ? '0' : modVersion,
                     modId: modId,
                     activeOn: found === undefined ? // if we didnt find a record use defaults. if record didnt have any active on info, use default
-                                  self.validSlots : found.data.activeOn === undefined ? 
-                                                                      self.validSlots : found.data.activeOn
+                        self.validSlots : found.data.activeOn === undefined ?
+                            self.validSlots : found.data.activeOn
                 });
             }
         }

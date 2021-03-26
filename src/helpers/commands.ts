@@ -1,4 +1,5 @@
 import discord from 'discord.js'
+import { ServerCommand } from '../models/command.id';
 import config from '../data/config.json';
 
 export const guildCommandList = [
@@ -6,7 +7,7 @@ export const guildCommandList = [
         commandId: 'server-create',
         argCount: 1,
         format: `${config.bot.commandPrefix}server-create serverName`,
-        help: `Generates a new server token and adds server to server list`
+        help: `Generates a new server token and adds server to server list`,
     },
     {
         commandId: 'server-add',
@@ -42,100 +43,136 @@ export const guildCommandList = [
 
 export const serverCommandList = [
     {
-        commandId: 'save-list',
-        argCount: 0,
-        format: `${config.bot.commandPrefix}save-list`,
-        help: `Lists all saved games on the server`
+        commandId: ServerCommand.saves,
+        minArgCount: 0,
+        maxArgCount: 0,
+        format: `${config.bot.commandPrefix}${ServerCommand.saves}`,
+        help: `Lists all saved games on the server`,
+        action: async (commandId: string, args: string[],  message: discord.Message) => { }
     },
     {
-        commandId: 'mod-install',
-        argCount: 1,
-        format: `${config.bot.commandPrefix}mod-install modName`,
-        help: `Attempts to download and install mod to the server`
+        commandId: ServerCommand.modinstall,
+        minArgCount: 1,
+        maxArgCount: 1,
+        format: `${config.bot.commandPrefix}${ServerCommand.modinstall} modName`,
+        help: `Attempts to download and install mod to the server`,
+        action: async (commandId: string, args: string[],  message: discord.Message) => { }
     },
     {
-        commandId: 'mod-delete',
-        argCount: 1,
-        format: `${config.bot.commandPrefix}mod-delete modName`,
-        help: `Deletes mod from server`
+        commandId: ServerCommand.modupdate,
+        minArgCount: 1,
+        maxArgCount: 1,
+        format: `${config.bot.commandPrefix}${ServerCommand.modupdate} modName`,
+        help: `Attempts to download latest version of mod to the server`,
+        action: async (commandId: string, args: string[],  message: discord.Message) => { }
     },
     {
-        commandId: 'mod-list',
-        argCount: 0,
-        format: `${config.bot.commandPrefix}mod-list`,
-        help: `Lists all mods installed to server`
+        commandId: ServerCommand.moddelete,
+        minArgCount: 1,
+        maxArgCount: 1,
+        format: `${config.bot.commandPrefix}${ServerCommand.moddelete} modName`,
+        help: `Deletes mod from server`,
+        action: async (commandId: string, args: string[],  message: discord.Message) => { }
     },
     {
-        commandId: 'mod-update',
-        argCount: 1,
-        format: `${config.bot.commandPrefix}mod-update modName`,
-        help: `Attempts to download latest version of mod to the server`
+        commandId: ServerCommand.modon,
+        minArgCount: 1,
+        maxArgCount: 99,
+        format: `${config.bot.commandPrefix}${ServerCommand.modon} slotId modName`,
+        help: `Activate mod on slot`,
+        action: async (commandId: string, args: string[],  message: discord.Message) => { }
     },
     {
-        commandId: 'start',
-        argCount: 1,
-        format: `${config.bot.commandPrefix}start slotName`,
-        help: `Tell the sever to start the specified slot`
+        commandId: ServerCommand.modoff,
+        minArgCount: 1,
+        maxArgCount: 99,
+        format: `${config.bot.commandPrefix}${ServerCommand.modoff} slotId modName`,
+        help: `Deactivates mod on slot`,
+        action: async (commandId: string, args: string[],  message: discord.Message) => { }
     },
     {
-        commandId: 'stop',
-        argCount: 0,
-        format: `${config.bot.commandPrefix}stop`,
-        help: `Tell server to shut down`
+        commandId: ServerCommand.mods,
+        minArgCount: 0,
+        maxArgCount: 0,
+        format: `${config.bot.commandPrefix}${ServerCommand.mods}`,
+        help: `Lists all mods installed to server`,
+        action: async (commandId: string, args: string[],  message: discord.Message) => { }
     },
     {
-        commandId: 'msg',
-        argCount: 1,    // just has to be more than 0
-        format: `${config.bot.commandPrefix}msg messageContent`,
-        help: 'Send a chat message to server'
+        commandId: ServerCommand.start,
+        minArgCount: 1,
+        maxArgCount: 1,
+        format: `${config.bot.commandPrefix}${ServerCommand.start} slotId`,
+        help: `Start server using specified save slot`,
+        action: async (commandId: string, args: string[],  message: discord.Message) => { }
     },
     {
-        commandId: 'promote',
-        argCount: 1,
-        format: `${config.bot.commandPrefix}promote username`,
-        help: `Promote the player to game admin during this game session`
+        commandId: ServerCommand.stop,
+        minArgCount: 0,
+        maxArgCount: 0,
+        format: `${config.bot.commandPrefix}${ServerCommand.moddelete}`,
+        help: `Shut down server`,
+        action: async (commandId: string, args: string[],  message: discord.Message) => { }
     },
     {
-        commandId: 'promote-add',
-        argCount: 1,
-        format: `${config.bot.commandPrefix}promote-add username`,
-        help: `Adds player to promote on join list`
+        commandId: ServerCommand.msg,
+        minArgCount: 1,
+        maxArgCount: 10000,
+        format: `${config.bot.commandPrefix}${ServerCommand.msg} messageContent`,
+        help: 'Send a chat message to server',
+        action: async (commandId: string, args: string[],  message: discord.Message) => { }
     },
     {
-        commandId: 'promote-remove',
-        argCount: 1,
-        format: `${config.bot.commandPrefix}promote-remove username`,
-        help: `Removes player from promote on join list`
+        commandId: ServerCommand.promote,
+        minArgCount: 1,
+        maxArgCount: 1,
+        format: `${config.bot.commandPrefix}${ServerCommand.promote} username`,
+        help: `Promote the player to game admin during this game session`,
+        action: async (commandId: string, args: string[],  message: discord.Message) => { }
     },
     {
-        commandId: 'promote-list',
-        argCount: 0,
-        format: `${config.bot.commandPrefix}promote-list`,
-        help: `Lists players on the promote on join list`
+        commandId: ServerCommand.promoteadd,
+        minArgCount: 1,
+        maxArgCount: 1,
+        format: `${config.bot.commandPrefix}${ServerCommand.promoteadd} username`,
+        help: `Adds player to promote on join list`,
+        action: async (commandId: string, args: string[],  message: discord.Message) => { }
     },
     {
-        commandId: 'mod-activate',
-        argCount: 2,    // second arg may contain spaces
-        format: `${config.bot.commandPrefix}mod-activate slotId modName`,
-        help: `Activate mod on slot`
+        commandId: ServerCommand.promoteremove,
+        minArgCount: 1,
+        maxArgCount: 1,
+        format: `${config.bot.commandPrefix}${ServerCommand.promoteremove} username`,
+        help: `Removes player from promote on join list`,
+        action: async (commandId: string, args: string[],  message: discord.Message) => { }
     },
     {
-        commandId: 'mod-deactivate',
-        argCount: 2,    // second arg may contain spaces
-        format: `${config.bot.commandPrefix}slot-mod-deactivate slotId modName`,
-        help: `Deactivates mod on slot`
+        commandId: ServerCommand.promotelist,
+        minArgCount: 0,
+        maxArgCount: 0,
+        format: `${config.bot.commandPrefix}${ServerCommand.promotelist}`,
+        help: `Lists players on the promote on join list`,
+        action: async (commandId: string, args: string[],  message: discord.Message) => { }
     },
     {
-        commandId: 'commands',
-        argCount: 0,
-        format: `${config.bot.commandPrefix}commands`,
-        help: `return a list of available server commands`
+        commandId: ServerCommand.commands,
+        minArgCount: 0,
+        maxArgCount: 0,
+        format: `${config.bot.commandPrefix}${ServerCommand.commands}`,
+        help: `return a list of available server commands`,
+        action: async (commandId: string, args: string[],  message: discord.Message) => { }
     }
 ]
 
+export function addServerAction(commandId: string, action: (commandId: string, args: string[],  message: discord.Message) => Promise<void>) {
+    const command = getServerCommand(commandId);
+    if (command !== undefined) {
+        command.action = action;
+    }
+}
 
 export function getGuildCommandHelp(commandId: string) {
-    const command = guildCommandList.find(c => c.commandId === commandId);
+    const command = guildCommandList.find(c => c.commandId === commandId.toLowerCase());
     if (command === undefined) {
         return `That is not a command I recognize: ${commandId}`;
     }
@@ -157,11 +194,11 @@ export function getGuildCommands() {
 }
 
 export function getGuildCommand(commandId: string) {
-    return guildCommandList.find(c => c.commandId === commandId);
+    return guildCommandList.find(c => c.commandId === commandId.toLowerCase());
 }
 
 export function getServerCommandHelp(commandId: string): string {
-    const command = serverCommandList.find(c => c.commandId === commandId);
+    const command = serverCommandList.find(c => c.commandId === commandId.toLowerCase());
     if (command === undefined) {
         return `That is not a command I recognize: ${commandId}`;
     }
@@ -183,7 +220,7 @@ export function getServerCommands() {
 }
 
 export function getServerCommand(commandId: string) {
-    return serverCommandList.find(c => c.commandId === commandId);
+    return serverCommandList.find(c => c.commandId === commandId.toLowerCase());
 }
 
 // returns command provided from discord message
