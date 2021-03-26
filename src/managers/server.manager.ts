@@ -20,6 +20,7 @@ export class ServerManager {
     launchId: string;
     serverState: ServerState;
     serverIp: string;
+    previousLog: string; // we need this cause the game server likes to send duplicate logs...
     readonly validSlots: string[];
 
     modHandler: ModHandler;
@@ -38,6 +39,7 @@ export class ServerManager {
         this.launchId = '';
         this.serverState = ServerState.Offline;
         this.serverIp = '';
+        this.previousLog = '';
         this.validSlots = ["slot1", "slot2", "slot3", "slot4", "slot5", "slot6", "slot7", "slot8", "slot9"];
 
         this.modHandler = new ModHandler();
@@ -505,9 +507,10 @@ export class ServerManager {
             version: '1.1.27',
             admins: serverData.data.admins,
         }
-        updatedServer.admins.push(username);
-        this.discordEmitter.emit('sendGameServerMsg', self.serverName, `Adding ${username} to auto promote list`);
+        updatedServer.admins.push(username.toLowerCase()); // always insert names using lower case
         await updateServer(updatedServer, serverData.ref);
+
+        this.discordEmitter.emit('sendGameServerMsg', self.serverName, `Added ${username} to auto promote list`);
     }
 
     async removePromote(commandId: string, args: string[], message: discord.Message) {
@@ -523,15 +526,16 @@ export class ServerManager {
             version: '1.1.27',
             admins: serverData.data.admins,
         }
-        const index = updatedServer.admins.indexOf(username);
+        const index = updatedServer.admins.indexOf(username.toLowerCase()); // all user names are lower case
         if (index === -1) {
             this.discordEmitter.emit('sendGameServerMsg', self.serverName, `${username} is not on the promote list`);
             return;
         }
 
-        this.discordEmitter.emit('sendGameServerMsg', self.serverName, `Removing ${username} from auto promote list`);
         updatedServer.admins.splice(index, 1);
         await updateServer(updatedServer, serverData.ref);
+
+        this.discordEmitter.emit('sendGameServerMsg', self.serverName, `Removed ${username} from auto promote list`);
     }
 
     async promoteList(commandId: string, args: string[], message: discord.Message) {
@@ -740,36 +744,46 @@ export class ServerManager {
     async captureLog(json: any) {
         const self = this;
 
-        // TODO: double send bug is back, need to filter shit out
-
         // ignore log message more than 1 minute old
         if (new Date().getTime() - json.time > 60000) {
             return;
         }
 
-        if (json.line.includes('[JOIN]')) {
-            // get promotes list
-            // if player name is in list request promote
-            //self.handleJoin(json);
+        // if we recieve a duplicate message, ignore it
+        if (self.previousLog === json.line) {
+            return;
         }
 
-        // else if (json.line.includes('[LEAVE]')) {
-        //     self.handleGeneric(receivedMsg);
-        // }
-        // else if (json.line.includes('[CHAT]')) {
-        //     self.handleGeneric(receivedMsg);
-        // }
-        // else if (json.line.includes('already an admin')) {
-        //     self.handleGeneric(receivedMsg);
-        // }
-        // else if (json.line.includes('[PROMOTE]')) {
-        //     self.handleGeneric(receivedMsg);
-        // }
-        // else if (json.line.includes('[COMMAND]')) {
-        //     self.handleGeneric(receivedMsg);
-        // }
+        if (json.line.includes('[JOIN]')) {
+            const serverData: any = await getServer(self.guildId, self.serverToken);
+            if (serverData !== undefined) {
+                // search for a valid user name in the text
+                const words = json.line.split(' ');
+                for (const word in words) {
+                    if (serverData.data.admins.includes(word.toLowerCase())) {
+                        await promote(self.visitSecret, self.launchId, word);
+                    }
+                }
+            }
 
-        self.discordEmitter.emit('sendGameServerMsg', self.serverName, json.line);
+            self.discordEmitter.emit('sendGameServerMsg', self.serverName, json.line);
+        }
+        // things we care about, ignore everything else
+        else if (json.line.includes('[LEAVE]') ||
+                 json.line.includes('[CHAT]') ||
+                 json.line.includes('already an admin') ||
+                 json.line.includes('[PROMOTE]') ||
+                 json.line.includes('[COMMAND]')) {
+
+            // ignore pings on land and pings on train... want to ignore all pings but this is good enough
+            if (json.line.includes('[gps=') || json.line.includes('[train=')) {
+                return;
+            }
+
+            self.discordEmitter.emit('sendGameServerMsg', self.serverName, json.line);
+        }
+
+        self.previousLog = json.line;
     }
 
     captureConsole(json: any): void {
