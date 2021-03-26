@@ -20,6 +20,7 @@ export enum GuildCommand {
     servercreate = "servercreate",
     serveradd = "serveradd",
     serverremove = "serverremove",
+    serverlist = "serverlist",
     cheats = "cheats",
     commands = "commands"
 }

@@ -1,13 +1,14 @@
 import discord from 'discord.js'
 import websocket, { server } from 'websocket';
 import { EOL } from 'os';
-import { getGuildCommandHelp, getGuildCommands, getGuildCommand, getCommandFromMessage,  getCommandArgsFromMessage } from '../helpers/commands';
+import { addGuildAction, getGuildCommandHelp, getGuildCommands, getGuildCommand, getCommandFromMessage, getCommandArgsFromMessage } from '../helpers/commands';
 import { DiscordManager } from './discord.manager';
 import { ServerManager } from './server.manager';
 import { DiscordMessageEmitter } from '../emitters/discord.message.emitter';
 import { login } from '../helpers/requests';
-import { getServers, getServerByToken, addServer, removeServer } from '../database/server.db';
+import { getServers, getServerByToken, addServer } from '../database/server.db';
 import { addSaves } from '../database/saves.db';
+import { GuildCommand } from '../models/command.id';
 import urls from '../data/api.urls.json';
 
 export class GuildManager {
@@ -32,7 +33,7 @@ export class GuildManager {
         const self = this;
 
         // get serverList
-        const serverList:any = await getServers(self.guildId);
+        const serverList: any = await getServers(self.guildId);
 
         // if no servers just init discord manager
         if (serverList === undefined) {
@@ -49,6 +50,24 @@ export class GuildManager {
             self.gameServerManagers.push(gsm);
         }
 
+    }
+
+    addActions() {
+        const self = this;
+        self.createServer = self.createServer.bind(self);
+        addGuildAction(GuildCommand.servercreate, self.createServer);
+
+        self.addServer = self.addServer.bind(self);
+        addGuildAction(GuildCommand.serveradd, self.addServer);
+
+        self.removeServer = self.removeServer.bind(self);
+        addGuildAction(GuildCommand.serverremove, self.removeServer);
+
+        self.listServers = self.listServers.bind(self);
+        addGuildAction(GuildCommand.serverlist, self.listServers);
+
+        self.listCheats = self.listCheats.bind(self);
+        addGuildAction(GuildCommand.cheats, self.listCheats);
     }
 
     async remove() {
@@ -69,18 +88,7 @@ export class GuildManager {
 
         // is this a management message
         if (self.discordManager.isManagementChannel(message)) {
-            // confirm command and args are valid
-            const command = getGuildCommand(commandId);
-            if (command === undefined) {
-                this.discordEmitter.emit('sendManagementMsg', `I do not know how to do that: ${commandId}`);
-                return;
-            }
-            else if (command.argCount !== args.length) {
-                this.discordEmitter.emit('sendManagementMsg', getGuildCommandHelp(commandId));
-                return;
-            }
-            
-            self.handleCommand(commandId, args);
+            self.handleCommand(commandId, args, message);
         }
 
         // is this a game server message
@@ -91,35 +99,26 @@ export class GuildManager {
         }
     }
 
-    async handleCommand(commandId: string, args: string[]) {
-        switch (commandId) {
-            case 'server-create':
-                await this.createServer(args);
-                break;
-
-            case 'server-add':
-                await this.addServer(args);
-                break;
-
-            case 'server-remove':
-                this.removeServer(args);
-                break;
-
-            case 'server-list':
-                this.listServers(args);
-                break;
-
-            case 'cheats':
-                this.listCheats(args);
-                break;
-
-            case 'commands':
-                // TODO: send a list of commands specific to the management channel (meaning commands we handle here)
-            default:
-                this.discordEmitter.emit('sendManagementMsg', getGuildCommands());
-                break;
-
+    async handleCommand(commandId: string, args: string[], message: discord.Message) {
+        // confirm command and args are valid
+        const command = getGuildCommand(commandId);
+        if (command === undefined) {
+            this.discordEmitter.emit('sendManagementMsg', `I do not know how to do that: ${commandId}`);
+            return;
         }
+        else if (args.length < command.minArgCount || args.length > command.maxArgCount) {
+            this.discordEmitter.emit('sendManagementMsg', getGuildCommandHelp(commandId));
+            return;
+        }
+
+        // if user is asking for a list of commands
+        if (command.commandId === GuildCommand.commands) {
+            this.discordEmitter.emit('sendManagementMsg', getGuildCommands());
+            return;
+        }
+
+        //  perform requested action
+        command.action(commandId, args, message);
     }
 
     getGameServerManager(channelName: string | undefined): ServerManager | undefined {
@@ -153,7 +152,7 @@ export class GuildManager {
 
         // check if token is being used by another guild
         const found = await getServerByToken(serverToken);
-        return found !== undefined; 
+        return found !== undefined;
     }
 
     async openTempTokenSocket(serverName: string, token: string | null): Promise<void> {
@@ -231,7 +230,7 @@ export class GuildManager {
         self.discordEmitter.emit('sendManagementMsg', `${serverName} using ${token} is now being managed`);
     }
 
-    async createServer(args: string[]): Promise<void> {
+    async createServer(commandId: string, args: string[], message: discord.Message) {
         const serverName = args[0];
 
         // check values are good
@@ -244,7 +243,7 @@ export class GuildManager {
         this.openTempTokenSocket(serverName, null);
     }
 
-    async addServer(args: string[]): Promise<void> {
+    async addServer(commandId: string, args: string[], message: discord.Message) {
         const self = this;
 
         const serverName = args[0];
@@ -266,7 +265,7 @@ export class GuildManager {
         this.openTempTokenSocket(serverName, serverToken);
     }
 
-    async removeServer(args: string[]): Promise<void> {
+    async removeServer(commandId: string, args: string[], message: discord.Message) {
         const self = this;
 
         // get server name from arguments
@@ -282,37 +281,38 @@ export class GuildManager {
         // get server token
         const serverToken = server.serverToken;
 
-         // tell server we're done
-         server.remove();
+        // tell server we're done
+        server.remove();
 
-         // remove manager from managers list
-         const serverIndex = self.gameServerManagers.indexOf(server);
-         self.gameServerManagers.splice(serverIndex, 1);
+        // remove manager from managers list
+        const serverIndex = self.gameServerManagers.indexOf(server);
+        self.gameServerManagers.splice(serverIndex, 1);
 
-         const channel = self.discordManager.getChannel(serverName);
-         if (channel !== undefined) {
-             self.discordManager.removeChannel(channel.channel);
-         }
-         self.discordEmitter.emit('sendManagementMsg', `${serverName} using ${serverToken} removed from server list`);
+        const channel = self.discordManager.getChannel(serverName);
+        if (channel !== undefined) {
+            self.discordManager.removeChannel(channel.channel);
+        }
+        self.discordEmitter.emit('sendManagementMsg', `${serverName} using ${serverToken} removed from server list`);
     }
 
-    listServers(args: string[]): void {
+    async listServers(commandId: string, args: string[], message: discord.Message) {
         const self = this;
 
-        let list = '';
-        for (const server of self.gameServerManagers) {
-            list += `${server.serverName}  ${server.serverToken}${EOL}`;
+        if (self.gameServerManagers.length <= 0) {
+            self.discordEmitter.emit('sendManagementMsg', 'I am not managing any servers yet');
+            return;
         }
 
-        if (list === '') {
-            self.discordEmitter.emit('sendManagementMsg', 'I am not managing any servers yet');
+        const serverList = new discord.MessageEmbed();
+        serverList.setColor('#0099ff');
+        serverList.setTitle('Server Commands');
+        for (const server of self.gameServerManagers) {
+            serverList.addField(server.serverName, server.serverToken);
         }
-        else {
-            self.discordEmitter.emit('sendManagementMsg', list);
-        }
+        self.discordEmitter.emit('sendManagementMsg', serverList);
     }
 
-    listCheats(args: string[]): void {
+    async listCheats(commandId: string, args: string[], message: discord.Message) {
         this.discordEmitter.emit('sendManagementMsg', 'a list of cheats!');
     }
 }

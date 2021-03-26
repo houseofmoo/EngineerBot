@@ -234,6 +234,7 @@ export class ServerManager {
     async activateMod(commandId: string, args: string[], message: discord.Message) {
         const self = this;
 
+        // TODO: allow multiple mods to be activated
         const slotId = args.shift();
         const modName = args.join(' ');
         console.log(modName);

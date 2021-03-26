@@ -1,43 +1,55 @@
 import discord from 'discord.js'
-import { ServerCommand } from '../models/command.id';
+import { GuildCommand, ServerCommand } from '../models/command.id';
 import config from '../data/config.json';
 
 export const guildCommandList = [
     {
-        commandId: 'server-create',
-        argCount: 1,
-        format: `${config.bot.commandPrefix}server-create serverName`,
+        commandId: GuildCommand.servercreate,
+        minArgCount: 1,
+        maxArgCount: 1,
+        format: `${config.bot.commandPrefix}${GuildCommand.servercreate} serverName`,
         help: `Generates a new server token and adds server to server list`,
+        action: async (commandId: string, args: string[],  message: discord.Message) => { }
     },
     {
-        commandId: 'server-add',
-        argCount: 2,
-        format: `${config.bot.commandPrefix}server-add serverName serverToken`,
-        help: `Adds a new server to server list`
+        commandId: GuildCommand.serveradd,
+        minArgCount: 2,
+        maxArgCount: 2,
+        format: `${config.bot.commandPrefix}${GuildCommand.serveradd} serverName serverToken`,
+        help: `Adds a new server to server list`,
+        action: async (commandId: string, args: string[],  message: discord.Message) => { }
     },
     {
-        commandId: 'server-remove',
-        argCount: 1,
-        format: `${config.bot.commandPrefix}server-remove serverName`,
-        help: `Removes a server from server list. Contents of server are unaffected and can be viewed at https://factorio.zone`
+        commandId: GuildCommand.serverremove,
+        minArgCount: 2,
+        maxArgCount: 2,
+        format: `${config.bot.commandPrefix}${GuildCommand.serverremove} serverName serverToken`,
+        help: `Removes a server from server list. Contents of server are unaffected and can be viewed at https://factorio.zone`,
+        action: async (commandId: string, args: string[],  message: discord.Message) => { }
     },
     {
-        commandId: 'server-list',
-        argCount: 0,
-        format: `${config.bot.commandPrefix}server-list`,
-        help: `Lists all servers`
+        commandId: GuildCommand.serverlist,
+        minArgCount: 0,
+        maxArgCount: 0,
+        format: `${config.bot.commandPrefix}${GuildCommand.serverlist}`,
+        help: `Lists all servers`,
+        action: async (commandId: string, args: string[],  message: discord.Message) => { }
     },
     {
-        commandId: 'cheats',
-        argCount: 0,
-        format: `${config.bot.commandPrefix}cheats`,
-        help: `Lists helpful cheat commands. You will lose the ability to get achievements if you use these`
+        commandId: GuildCommand.cheats,
+        minArgCount: 0,
+        maxArgCount: 0,
+        format: `${config.bot.commandPrefix}${GuildCommand.cheats}`,
+        help: `Lists helpful cheat commands. You will lose the ability to get achievements if you use these`,
+        action: async (commandId: string, args: string[],  message: discord.Message) => { }
     },
     {
-        commandId: 'commands',
-        argCount: 0,
-        format: `${config.bot.commandPrefix}commands`,
-        help: `return a list of available guild commands`
+        commandId: GuildCommand.commands,
+        minArgCount: 0,
+        maxArgCount: 0,
+        format: `${config.bot.commandPrefix}${GuildCommand.commands}`,
+        help: `return a list of available guild commands`,
+        action: async (commandId: string, args: string[],  message: discord.Message) => { }
     }
 ]
 
@@ -164,13 +176,6 @@ export const serverCommandList = [
     }
 ]
 
-export function addServerAction(commandId: string, action: (commandId: string, args: string[],  message: discord.Message) => Promise<void>) {
-    const command = getServerCommand(commandId);
-    if (command !== undefined) {
-        command.action = action;
-    }
-}
-
 export function getGuildCommandHelp(commandId: string) {
     const command = guildCommandList.find(c => c.commandId === commandId.toLowerCase());
     if (command === undefined) {
@@ -197,6 +202,13 @@ export function getGuildCommand(commandId: string) {
     return guildCommandList.find(c => c.commandId === commandId.toLowerCase());
 }
 
+export function addGuildAction(commandId: string, action: (commandId: string, args: string[],  message: discord.Message) => Promise<void>) {
+    const command = getGuildCommand(commandId);
+    if (command !== undefined) {
+        command.action = action;
+    }
+}
+
 export function getServerCommandHelp(commandId: string): string {
     const command = serverCommandList.find(c => c.commandId === commandId.toLowerCase());
     if (command === undefined) {
@@ -221,6 +233,13 @@ export function getServerCommands() {
 
 export function getServerCommand(commandId: string) {
     return serverCommandList.find(c => c.commandId === commandId.toLowerCase());
+}
+
+export function addServerAction(commandId: string, action: (commandId: string, args: string[],  message: discord.Message) => Promise<void>) {
+    const command = getServerCommand(commandId);
+    if (command !== undefined) {
+        command.action = action;
+    }
 }
 
 // returns command provided from discord message
