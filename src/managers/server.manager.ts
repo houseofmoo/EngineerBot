@@ -2,20 +2,20 @@ import discord from 'discord.js'
 import { ModHandler } from '../helpers/mod.handler';
 import { SocketManager } from './socket.manager';
 import { DiscordMessageEmitter } from '../emitters/discord.message.emitter';
-import { getServerCommand, getServerCommands, getServerCommandHelp, addServerAction } from '../helpers/commands'
 import { login, startServer, stopServer, chat, promote, enableMod } from '../helpers/requests';
 import { getServer, updateServer, removeServer } from '../database/server.db';
-import { getGameMods, getGameMod, addGameMod, removeGameMod, removeAllMods, updateGameMod } from '../database/mods.db';
+import { getGameMods, getGameMod, addGameMod, removeAllMods, updateGameMod } from '../database/mods.db';
 import { addSaves, getSaves, removeSaves, updateSaves } from '../database/saves.db';
 import { Server } from '../models/data.types';
 import { ServerState } from '../models/server.state';
 import { ServerCommand } from '../models/command.id';
+import { ServerCommands } from '../commands/server.commands';
 
 // mananges a single game server for guild
 export class ServerManager {
-    guildId: string;
-    serverName: string;
-    serverToken: string;
+    readonly guildId: string;
+    readonly serverName: string;
+    readonly serverToken: string;
 
     visitSecret: string;
     launchId: string;
@@ -23,9 +23,11 @@ export class ServerManager {
     serverIp: string;
     readonly validSlots: string[];
 
-    modHandler: ModHandler;                     // handle game server mod related tasks
-    socketHandler: SocketManager;               // handles websocket connection between us and game server
-    discordEmitter: DiscordMessageEmitter;      // allows us to send discord messages
+    modHandler: ModHandler;                     
+    socketHandler: SocketManager;               
+    discordEmitter: DiscordMessageEmitter;     
+
+    serverCommands: ServerCommands;
 
 
     constructor(guildId: string, serverName: string, serverToken: string, discordEmitter: DiscordMessageEmitter) {
@@ -42,6 +44,8 @@ export class ServerManager {
         this.modHandler = new ModHandler();
         this.socketHandler = new SocketManager(this.serverToken);
         this.discordEmitter = discordEmitter;
+
+        this.serverCommands = new ServerCommands();
 
         this.addActions();
         this.addListeners();
@@ -98,46 +102,46 @@ export class ServerManager {
     addActions() {
         const self = this;
         self.listSaves = self.listSaves.bind(self);
-        addServerAction(ServerCommand.saves, self.listSaves);
+        self.serverCommands.addServerAction(ServerCommand.saves, self.listSaves);
 
         self.installMod = self.installMod.bind(self);
-        addServerAction(ServerCommand.modinstall, self.installMod);
+        self.serverCommands.addServerAction(ServerCommand.modinstall, self.installMod);
 
         self.updateMod = self.updateMod.bind(self);
-        addServerAction(ServerCommand.modupdate, self.updateMod);
+        self.serverCommands.addServerAction(ServerCommand.modupdate, self.updateMod);
         
         self.deleteMod = self.deleteMod.bind(self);
-        addServerAction(ServerCommand.moddelete, self.deleteMod);
+        self.serverCommands.addServerAction(ServerCommand.moddelete, self.deleteMod);
 
         self.activateMod = self.activateMod.bind(self);
-        addServerAction(ServerCommand.modon, self.activateMod);
+        self.serverCommands.addServerAction(ServerCommand.modon, self.activateMod);
 
         self.deactivateMod = self.deactivateMod.bind(self);
-        addServerAction(ServerCommand.modoff, self.deactivateMod);
+        self.serverCommands.addServerAction(ServerCommand.modoff, self.deactivateMod);
 
         self.listMods = self.listMods.bind(self);
-        addServerAction(ServerCommand.mods, self.listMods);
+        self.serverCommands.addServerAction(ServerCommand.mods, self.listMods);
 
         self.serverStart = self.serverStart.bind(self);
-        addServerAction(ServerCommand.start, self.serverStart);
+        self.serverCommands.addServerAction(ServerCommand.start, self.serverStart);
 
         self.serverStop = self.serverStop.bind(self);
-        addServerAction(ServerCommand.stop, self.serverStop);
+        self.serverCommands.addServerAction(ServerCommand.stop, self.serverStop);
 
         self.sendMessage = self.sendMessage.bind(self);
-        addServerAction(ServerCommand.msg, self.sendMessage);
+        self.serverCommands.addServerAction(ServerCommand.msg, self.sendMessage);
 
         self.promote = self.promote.bind(self);
-        addServerAction(ServerCommand.promote, self.promote);
+        self.serverCommands.addServerAction(ServerCommand.promote, self.promote);
 
         self.addPromote = self.addPromote.bind(self);
-        addServerAction(ServerCommand.promoteadd, self.addPromote);
+        self.serverCommands. addServerAction(ServerCommand.promoteadd, self.addPromote);
 
         self.removePromote = self.removePromote.bind(self);
-        addServerAction(ServerCommand.promoteremove, self.removePromote);
+        self.serverCommands.addServerAction(ServerCommand.promoteremove, self.removePromote);
 
         self.promoteList = self.promoteList.bind(self);
-        addServerAction(ServerCommand.promotelist, self.promoteList);
+        self.serverCommands.addServerAction(ServerCommand.promotelist, self.promoteList);
     }
 
     removeListeners() {
@@ -162,21 +166,23 @@ export class ServerManager {
         const self = this;
 
         // confirm command and args are valid
-        const command = getServerCommand(commandId);
+        const command = self.serverCommands.getServerCommand(commandId);
         if (command === undefined) {
             this.discordEmitter.emit('sendGameServerMsg', self.serverName, `I do not know how to do that: ${commandId}`);
             return;
         }
         else if (args.length < command.minArgCount || args.length > command.maxArgCount) {
-            this.discordEmitter.emit('sendGameServerMsg', self.serverName, getServerCommandHelp(commandId));
+            this.discordEmitter.emit('sendGameServerMsg', self.serverName, self.serverCommands.getServerCommandHelp(commandId));
             return;
         }
 
         // if user is asking for a list of commands
         if (command.commandId === ServerCommand.commands) {
-            this.discordEmitter.emit('sendGameServerMsg', self.serverName, getServerCommands());
+            this.discordEmitter.emit('sendGameServerMsg', self.serverName, self.serverCommands.getServerCommands());
             return;
         }
+
+        console.log(command);
 
         // perform requested action
         command.action(commandId, args, message);
@@ -319,23 +325,24 @@ export class ServerManager {
 
     async listMods(commandId: string, args: string[], message: discord.Message) {
         const self = this;
+        console.log(self.guildId);
+        console.log(self.serverToken);
         const mods: any = await getGameMods(self.guildId, self.serverToken);
 
-        const modEmbed = new discord.MessageEmbed();
-        modEmbed.setColor('#0099ff');
-        modEmbed.setTitle(`Server Mods`);
-
+        console.log(mods);
         if (mods !== undefined) {
+            const modEmbed = new discord.MessageEmbed();
+            modEmbed.setColor('#0099ff');
+            modEmbed.setTitle(`Server Mods`);
             if (mods.data.length !== 0) {
                 modEmbed.setTitle(`Server Mods (${mods.data.length})`);
                 for (const mod of mods.data) {
                     modEmbed.addField(`${mod.data.name} ${mod.data.version}`, mod.data.activeOn.filter((m: any) => m !== '').join(', '));
                 }
-
                 this.discordEmitter.emit('sendGameServerMsg', self.serverName, modEmbed);
             }
             else {
-                modEmbed.addField('No mods available', `install a mod with !mod-install modName`);
+                this.discordEmitter.emit('sendGameServerMsg', self.serverName, 'No mods installed on server');
             }
         }
         else {

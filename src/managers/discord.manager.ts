@@ -99,6 +99,7 @@ export class DiscordManager {
     }
 
     sendToChannel(serverName: string, msg: string | discord.MessageEmbed): void {
+        console.log('sending to channel');
         const self = this;
         const channelInfo = self.gameServerChannels.find(chan => chan.channel.name.toLowerCase() === serverName.toLowerCase());
         channelInfo?.channel.send(msg);

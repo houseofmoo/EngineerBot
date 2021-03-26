@@ -1,25 +1,23 @@
 import discord from 'discord.js'
-import websocket, { server } from 'websocket';
-import { EOL } from 'os';
-import { addGuildAction, getGuildCommandHelp, getGuildCommands, getGuildCommand, getCommandFromMessage, getCommandArgsFromMessage } from '../helpers/commands';
+import websocket from 'websocket';
+import { GuildCommands } from '../commands/guild.commands';
+import { GuildCommand } from '../models/command.id';
+import { getCommandFromMessage, getCommandArgsFromMessage } from '../helpers/command.helpers.';
 import { DiscordManager } from './discord.manager';
 import { ServerManager } from './server.manager';
 import { DiscordMessageEmitter } from '../emitters/discord.message.emitter';
 import { login } from '../helpers/requests';
 import { getServers, getServerByToken, addServer } from '../database/server.db';
 import { addSaves } from '../database/saves.db';
-import { GuildCommand } from '../models/command.id';
 import urls from '../data/api.urls.json';
 
 export class GuildManager {
     botClient: discord.Client;
-
-    guildId: string;                            // this guilds ID
-
-    discordManager: DiscordManager;             // handles dealing with this guild discord messaging
-    gameServerManagers: ServerManager[];    // manages game server
-
-    discordEmitter: DiscordMessageEmitter;      // discord manager response to emitted events
+    guildId: string;                       
+    guildCommands: GuildCommands;     
+    discordManager: DiscordManager;  
+    gameServerManagers: ServerManager[];  
+    discordEmitter: DiscordMessageEmitter;     
 
     constructor(guildId: string, bot: discord.Client) {
         this.guildId = guildId;
@@ -27,6 +25,8 @@ export class GuildManager {
         this.gameServerManagers = [];
         this.discordEmitter = new DiscordMessageEmitter();
         this.discordManager = new DiscordManager(this.guildId, this.discordEmitter, bot);
+        this.guildCommands = new GuildCommands();
+        this.addActions();
     }
 
     async initManagers() {
@@ -50,24 +50,26 @@ export class GuildManager {
             self.gameServerManagers.push(gsm);
         }
 
+        console.log(this.gameServerManagers);
+
     }
 
     addActions() {
         const self = this;
         self.createServer = self.createServer.bind(self);
-        addGuildAction(GuildCommand.servercreate, self.createServer);
+        self.guildCommands.addGuildAction(GuildCommand.servercreate, self.createServer);
 
         self.addServer = self.addServer.bind(self);
-        addGuildAction(GuildCommand.serveradd, self.addServer);
+        self.guildCommands.addGuildAction(GuildCommand.serveradd, self.addServer);
 
         self.removeServer = self.removeServer.bind(self);
-        addGuildAction(GuildCommand.serverremove, self.removeServer);
+        self.guildCommands.addGuildAction(GuildCommand.serverremove, self.removeServer);
 
         self.listServers = self.listServers.bind(self);
-        addGuildAction(GuildCommand.serverlist, self.listServers);
+        self.guildCommands.addGuildAction(GuildCommand.list, self.listServers);
 
         self.listCheats = self.listCheats.bind(self);
-        addGuildAction(GuildCommand.cheats, self.listCheats);
+        self.guildCommands.addGuildAction(GuildCommand.cheats, self.listCheats);
     }
 
     async remove() {
@@ -100,20 +102,22 @@ export class GuildManager {
     }
 
     async handleCommand(commandId: string, args: string[], message: discord.Message) {
+        const self = this;
+
         // confirm command and args are valid
-        const command = getGuildCommand(commandId);
+        const command = self.guildCommands.getGuildCommand(commandId);
         if (command === undefined) {
             this.discordEmitter.emit('sendManagementMsg', `I do not know how to do that: ${commandId}`);
             return;
         }
         else if (args.length < command.minArgCount || args.length > command.maxArgCount) {
-            this.discordEmitter.emit('sendManagementMsg', getGuildCommandHelp(commandId));
+            this.discordEmitter.emit('sendManagementMsg', self.guildCommands.getGuildCommandHelp(commandId));
             return;
         }
 
         // if user is asking for a list of commands
         if (command.commandId === GuildCommand.commands) {
-            this.discordEmitter.emit('sendManagementMsg', getGuildCommands());
+            this.discordEmitter.emit('sendManagementMsg', self.guildCommands.getGuildCommands());
             return;
         }
 
