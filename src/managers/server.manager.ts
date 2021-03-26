@@ -199,8 +199,13 @@ export class ServerManager {
 
     private setState(newState: ServerState) {
         const self = this;
-        self.serverState = newState;
+
+        if (newState === self.serverState) {
+            return;
+        }
+
         // set the new state and emit a message about state change
+        self.serverState = newState;
         switch (self.serverState) {
             case ServerState.Online:
                 this.discordEmitter.emit('sendGameServerMsg', self.serverName, `Online at ${self.serverIp}`);
