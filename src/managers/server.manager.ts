@@ -599,7 +599,6 @@ export class ServerManager {
 
     async captureVisit(json: any) {
         const self = this;
-        //console.log('captured visit');
         self.visitSecret = json.secret;
         if (self.visitSecret !== undefined) {
             await login(self.visitSecret, self.serverToken)
@@ -729,12 +728,6 @@ export class ServerManager {
         const self = this;
 
         switch (json.line) {
-            case 'ready':
-                self.setState(ServerState.Offline);
-                self.serverIp = '';
-                self.launchId = '';
-                break;
-
             case 'provisioning virtual machine, this will take an extra minute':
                 self.discordEmitter.emit('sendGameServerMsg', self.serverName, `Start up is slowed, provisioning virtual machine`);
                 break;
@@ -787,10 +780,13 @@ export class ServerManager {
     }
 
     captureConsole(json: any): void {
-
+        // do not care!
     }
 
     captureIdle(json: any): void {
-
+        const self = this;
+        self.setState(ServerState.Offline);
+        self.serverIp = '';
+        self.launchId = '';
     }
 }
