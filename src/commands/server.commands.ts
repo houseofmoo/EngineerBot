@@ -75,7 +75,7 @@ export class ServerCommands {
                 commandId: ServerCommand.stop,
                 minArgCount: 0,
                 maxArgCount: 0,
-                format: `${config.bot.commandPrefix}${ServerCommand.moddelete}`,
+                format: `${config.bot.commandPrefix}${ServerCommand.stop}`,
                 help: `Shut down server`,
                 action: async (commandId: string, args: string[],  message: discord.Message) => { }
             },

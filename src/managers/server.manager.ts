@@ -205,7 +205,7 @@ export class ServerManager {
 
         const savesEmbed = new discord.MessageEmbed();
         savesEmbed.setColor('#0099ff');
-        savesEmbed.setTitle('Server Saves');
+        savesEmbed.setTitle('Save Slots');
         savesEmbed.addField('slot1', saves.data.slot1);
         savesEmbed.addField('slot2', saves.data.slot2);
         savesEmbed.addField('slot3', saves.data.slot3);
@@ -330,7 +330,7 @@ export class ServerManager {
         if (mods !== undefined) {
             const modEmbed = new discord.MessageEmbed();
             modEmbed.setColor('#0099ff');
-            modEmbed.setTitle(`Server Mods`);
+            modEmbed.setTitle(`Game Mods`);
             if (mods.data.length !== 0) {
                 modEmbed.setTitle(`Server Mods (${mods.data.length})`);
                 for (const mod of mods.data) {
@@ -694,8 +694,39 @@ export class ServerManager {
         }
     }
 
-    captureLog(json: any): void {
+    async captureLog(json: any) {
+        const self = this;
 
+        // TODO: double send bug is back, need to filter shit out
+        
+        // ignore log message more than 1 minute old
+        if (new Date().getTime() - json.time > 60000) { 
+            return;
+        }
+
+        if (json.line.includes('[JOIN]')) {
+            // get promotes list
+            // if player name is in list request promote
+            //self.handleJoin(json);
+        }
+
+        // else if (json.line.includes('[LEAVE]')) {
+        //     self.handleGeneric(receivedMsg);
+        // }
+        // else if (json.line.includes('[CHAT]')) {
+        //     self.handleGeneric(receivedMsg);
+        // }
+        // else if (json.line.includes('already an admin')) {
+        //     self.handleGeneric(receivedMsg);
+        // }
+        // else if (json.line.includes('[PROMOTE]')) {
+        //     self.handleGeneric(receivedMsg);
+        // }
+        // else if (json.line.includes('[COMMAND]')) {
+        //     self.handleGeneric(receivedMsg);
+        // }
+
+        self.discordEmitter.emit('sendGameServerMsg', self.serverName, json.line);
     }
 
     captureConsole(json: any): void {

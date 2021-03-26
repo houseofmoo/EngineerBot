@@ -77,10 +77,15 @@ export async function chat(visitSecret: string, launchId: string, username: stri
     //let fullMsg = `${username} ${msg}`;
     //fullMsg.replace(' ', '%20'); // convert spaces to form spaces...? something like that, again forms are weird
     //let form = `visitSecret=${visitSecret}&launchId=${launchId}&input=${fullMsg}`;
+    console.log(qs.stringify({
+        visitSecret: visitSecret,
+        launchId: launchId,
+        input: `${username}: ${msg}`
+    }))
     await axios.post(urls.gameServer.console, qs.stringify({
-        visitSecret,
-        launchId,
-        innput: `${username} ${msg}`
+        visitSecret: visitSecret,
+        launchId: launchId,
+        input: `${username} ${msg}`
     })).then((response) => {
         console.log("response code: " + response.status + ' ' + response.statusText);
     })

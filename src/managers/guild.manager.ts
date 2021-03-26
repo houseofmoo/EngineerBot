@@ -313,7 +313,7 @@ export class GuildManager {
 
         const serverList = new discord.MessageEmbed();
         serverList.setColor('#0099ff');
-        serverList.setTitle('Server Commands');
+        serverList.setTitle('Servers');
         for (const server of self.gameServerManagers) {
             serverList.addField(server.serverName, server.serverToken);
         }
