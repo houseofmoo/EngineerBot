@@ -274,6 +274,7 @@ export class GuildManager {
 
         // get server name from arguments
         const serverName = args[0];
+        const token = args[1];
 
         // look for manager
         const server = self.gameServerManagers.find(gsm => gsm.serverName.toLowerCase() === serverName.toLowerCase());
@@ -282,8 +283,11 @@ export class GuildManager {
             return;
         }
 
-        // get server token
-        const serverToken = server.serverToken;
+        // confirm token matches
+        if (server.serverToken !== token) {
+            self.discordEmitter.emit('sendManagementMsg', `Token does not match server name, try again with correct token`);
+            return;
+        }
 
         // tell server we're done
         server.remove();
@@ -296,7 +300,7 @@ export class GuildManager {
         if (channel !== undefined) {
             self.discordManager.removeChannel(channel.channel);
         }
-        self.discordEmitter.emit('sendManagementMsg', `${serverName} using ${serverToken} removed from server list`);
+        self.discordEmitter.emit('sendManagementMsg', `${serverName} using ${token} removed from server list`);
     }
 
     async listServers(commandId: string, args: string[], message: discord.Message) {
