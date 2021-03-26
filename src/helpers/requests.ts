@@ -74,9 +74,6 @@ export async function promote(visitSecret: string, launchId: string | undefined,
 }
 
 export async function chat(visitSecret: string, launchId: string, username: string, msg: string): Promise<void> {
-    //let fullMsg = `${username} ${msg}`;
-    //fullMsg.replace(' ', '%20'); // convert spaces to form spaces...? something like that, again forms are weird
-    //let form = `visitSecret=${visitSecret}&launchId=${launchId}&input=${fullMsg}`;
     console.log(qs.stringify({
         visitSecret: visitSecret,
         launchId: launchId,

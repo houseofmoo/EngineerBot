@@ -141,6 +141,9 @@ export class ServerManager {
 
         self.promoteList = self.promoteList.bind(self);
         self.serverCommands.addServerAction(ServerCommand.promotelist, self.promoteList);
+
+        self.status = self.status.bind(self);
+        self.serverCommands.addServerAction(ServerCommand.status, self.status);
     }
 
     removeListeners() {
@@ -514,6 +517,28 @@ export class ServerManager {
         const serverData: any = await getServer(self.guildId, self.serverToken);
         const promotable = serverData.data.admins;
         this.discordEmitter.emit('sendGameServerMsg', self.serverName, promotable.join(', '));
+    }
+
+    async status(commandId: string, args: string[], message: discord.Message) {
+        const self = this;
+
+        switch (self.serverState) {
+            case ServerState.Online:
+                this.discordEmitter.emit('sendGameServerMsg', self.serverName, `Online at ${self.serverIp}`);
+                break;
+
+            case ServerState.Offline:
+                this.discordEmitter.emit('sendGameServerMsg', self.serverName, 'Server offline');
+                return;
+
+            case ServerState.Starting:
+                this.discordEmitter.emit('sendGameServerMsg', self.serverName, 'Server booting up');
+                return;
+
+            case ServerState.Stopping:
+                this.discordEmitter.emit('sendGameServerMsg', self.serverName, 'Server shutting down');
+                return;
+        }
     }
 
     captureConnected() {
