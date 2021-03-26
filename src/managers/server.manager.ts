@@ -11,7 +11,6 @@ import { ServerState } from '../models/server.state';
 import { ServerCommand } from '../models/command.id';
 import { ServerCommands } from '../commands/server.commands';
 
-// mananges a single game server for guild
 export class ServerManager {
     readonly guildId: string;
     readonly serverName: string;
@@ -23,9 +22,9 @@ export class ServerManager {
     serverIp: string;
     readonly validSlots: string[];
 
-    modHandler: ModHandler;                     
-    socketHandler: SocketManager;               
-    discordEmitter: DiscordMessageEmitter;     
+    modHandler: ModHandler;
+    socketHandler: SocketManager;
+    discordEmitter: DiscordMessageEmitter;
 
     serverCommands: ServerCommands;
 
@@ -109,7 +108,7 @@ export class ServerManager {
 
         self.updateMod = self.updateMod.bind(self);
         self.serverCommands.addServerAction(ServerCommand.modupdate, self.updateMod);
-        
+
         self.deleteMod = self.deleteMod.bind(self);
         self.serverCommands.addServerAction(ServerCommand.moddelete, self.deleteMod);
 
@@ -135,7 +134,7 @@ export class ServerManager {
         self.serverCommands.addServerAction(ServerCommand.promote, self.promote);
 
         self.addPromote = self.addPromote.bind(self);
-        self.serverCommands. addServerAction(ServerCommand.promoteadd, self.addPromote);
+        self.serverCommands.addServerAction(ServerCommand.promoteadd, self.addPromote);
 
         self.removePromote = self.removePromote.bind(self);
         self.serverCommands.addServerAction(ServerCommand.promoteremove, self.removePromote);
@@ -181,8 +180,6 @@ export class ServerManager {
             this.discordEmitter.emit('sendGameServerMsg', self.serverName, self.serverCommands.getServerCommands());
             return;
         }
-
-        console.log(command);
 
         // perform requested action
         command.action(commandId, args, message);
@@ -240,16 +237,9 @@ export class ServerManager {
     async activateMod(commandId: string, args: string[], message: discord.Message) {
         const self = this;
 
-        // TODO: allow multiple mods to be activated
+
         const slotId = args.shift();
         const modName = args.join(' ');
-        console.log(modName);
-        let multipleMods = [];
-        if (modName.includes(',')) {
-            multipleMods = modName.split(',');
-            console.log(multipleMods);
-            return;
-        }
 
         // confirm valid slot
         if (slotId === undefined || !self.isValidSlot(slotId)) {
@@ -257,7 +247,17 @@ export class ServerManager {
             return;
         }
 
-        // get mods for this server
+        // assume multiple mods
+        if (modName.includes(',')) {
+            let multipleMods = [];
+            multipleMods = modName.split(',');
+            for (const mod in multipleMods) {
+                // TODO: how can we activate multiple mods at once efficiently?
+            }
+
+        }
+
+        // get mod for this server
         const mod: any = await getGameMod(self.guildId, self.serverToken, modName);
         if (mod === undefined) {
             this.discordEmitter.emit('sendGameServerMsg', self.serverName, `${modName} was not found on server`);
@@ -325,11 +325,8 @@ export class ServerManager {
 
     async listMods(commandId: string, args: string[], message: discord.Message) {
         const self = this;
-        console.log(self.guildId);
-        console.log(self.serverToken);
         const mods: any = await getGameMods(self.guildId, self.serverToken);
 
-        console.log(mods);
         if (mods !== undefined) {
             const modEmbed = new discord.MessageEmbed();
             modEmbed.setColor('#0099ff');
