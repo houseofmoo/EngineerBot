@@ -811,7 +811,7 @@ export class ServerManager {
                 // search for a valid user name in the text
                 const words = json.line.split(' ');
                 console.log(words);
-                for (const word in words) {
+                for (const word of words) {
                     console.log(word);
                     if (serverData.data.admins.includes(word.toLowerCase())) {
                         await promote(self.visitSecret, self.launchId, word);
