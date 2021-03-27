@@ -72,7 +72,6 @@ export async function addServer(newGameServer: Server) {
                         name: newGameServer.name,
                         token: newGameServer.token,
                         region: newGameServer.region,
-                        version: newGameServer.version,
                         admins: newGameServer.admins
                     }
                 }
@@ -103,7 +102,6 @@ export async function updateServer(updatedServerData: Server, ref: any | undefin
                         name: updatedServerData.name,
                         token: updatedServerData.token,
                         region: updatedServerData.region,
-                        version: updatedServerData.version,
                         admins: updatedServerData.admins
                     }
                 }
