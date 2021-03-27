@@ -115,7 +115,7 @@ export class SocketManager {
                 self.socketEmitter.emit('receivedConsole', json);
                 break;
 
-            case 'idle':        // server is idle do nothing
+            case 'idle':        // server is idle
                 self.socketEmitter.emit('receivedIdle', json);
                 break;
 

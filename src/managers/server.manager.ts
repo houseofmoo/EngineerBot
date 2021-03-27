@@ -823,8 +823,8 @@ export class ServerManager {
     async captureLog(json: any) {
         const self = this;
 
-        // ignore log message more than 1 minute old
-        if (new Date().getTime() - json.time > 60000) {
+        // ignore log message more than 10 seconds old
+        if (new Date().getTime() - json.time > 10000) {
             return;
         }
 
@@ -832,12 +832,15 @@ export class ServerManager {
         if (self.previousLog === json.line) {
             return;
         }
+
         // capture log to check in the future
         self.previousLog = json.line;
 
+        // TODO: double print bug on leave...sometimes...
+        // also occurs on join no idea how
+
         // handle specific events we care about
         if (json.line.includes('[JOIN]')) {
-            // TODO: auto promote does not work!
             const serverData: any = await getServer(self.guildId, self.serverToken);
             if (serverData !== undefined) {
                 // search for a valid user name in the text
