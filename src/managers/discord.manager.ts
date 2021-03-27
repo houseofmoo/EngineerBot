@@ -15,7 +15,7 @@ export class DiscordManager {
     discordEmitter: DiscordMessageEmitter;
     gameServerChannels: {
         channel: discord.TextChannel,
-        webhook: discord.Webhook,
+        //webhook: discord.Webhook,
         voice: discord.VoiceChannel
     }[];
 
@@ -77,19 +77,41 @@ export class DiscordManager {
         self.discordEmitter.removeAllListeners('sendToGameServerWebHook');
     }
 
-    async remove() {
+    async removeAll() {
         const self = this;
         // this is unused since it was created for kick events... but if we're kicked we cannot do anything to that server
         self.removeListeners();
         for (const chan of self.gameServerChannels) {
             await self.removeChannel(chan.channel);
+            await self.removeChannel(chan.voice);
         }
+
+        // reset array
+        self.gameServerChannels = [];
 
         if (self.managementChannel !== undefined) {
             await self.removeChannel(self.managementChannel);
         }
 
         await self.deleteCategory(config.discord.categoryName);
+    }
+
+    async remove(channel: {
+        channel: discord.TextChannel,
+        //webhook: discord.Webhook,
+        voice: discord.VoiceChannel
+    }) {
+        const self = this;
+
+        // look for index of items
+        const channels = self.gameServerChannels.find(gsc => gsc.channel.id === channel.channel.id);
+        if (channels !== undefined) {
+            const index = self.gameServerChannels.indexOf(channels);
+            await self.removeChannel(channel.channel);
+            await self.removeChannel(channel.voice);
+            // TODO: remove webhook
+            self.gameServerChannels.splice(index, 1);
+        }
     }
 
     sendToManagementChannel(msg: string | discord.MessageEmbed): void {
@@ -110,9 +132,9 @@ export class DiscordManager {
     }
 
     sendToChannelViaWebhook(serverName: string, msg: string | discord.MessageEmbed, username: string): void {
-        const self = this;
-        const channelInfo = self.gameServerChannels.find(chan => chan.channel.name.toLowerCase() === serverName.toLowerCase());
-        channelInfo?.webhook.send(msg, { username: username });
+        // const self = this;
+        // const channelInfo = self.gameServerChannels.find(chan => chan.channel.name.toLowerCase() === serverName.toLowerCase());
+        // channelInfo?.webhook.send(msg, { username: username });
     }
 
     isManagementChannel(message: discord.Message): boolean {
@@ -153,13 +175,13 @@ export class DiscordManager {
 
             // create game server specific channels and associated webhook
             const newChannel = await self.createChannel(channelName, categoryChannel);
-            const newWebhook = await self.createWebhook(newChannel);
+            //const newWebhook = await self.createWebhook(newChannel);
             const voiceChannel = await self.createVoiceChannel(channelName, categoryChannel);
 
-            if (newChannel !== undefined && newWebhook !== undefined && voiceChannel !== undefined) {
+            if (newChannel !== undefined && voiceChannel !== undefined) {
                 self.gameServerChannels.push({
                     channel: newChannel,
-                    webhook: newWebhook,
+                    //webhook: newWebhook,
                     voice: voiceChannel
                 })
             }
@@ -174,19 +196,10 @@ export class DiscordManager {
         return self.gameServerChannels.find(gsc => gsc.channel.name.toLowerCase() === channelName.toLowerCase());
     }
 
-    async removeChannel(channel: discord.Channel) {
+    private async removeChannel(channel: discord.Channel) {
         const self = this;
 
         try {
-            const localChanRef = self.gameServerChannels.find(gsc => gsc.channel.id === channel.id);
-            if (localChanRef !== undefined) {
-                const index = self.gameServerChannels.indexOf(localChanRef);
-
-                if (index !== -1) {
-                    self.gameServerChannels.splice(index, 1);
-                }
-            }
-
             // delete channel from discord
             await channel.delete();
         }
@@ -197,19 +210,23 @@ export class DiscordManager {
 
     private async createRole(roleName: string, roleColor: string) {
         const self = this;
-
-        const roles = self.guild?.roles.cache.find(r => r.name === roleName);
-        if (roles !== undefined) {
-            return roles; // role exists
+        let factorioNerdRole = self.guild?.roles.cache.find(r => r.name === roleName);
+        if (factorioNerdRole !== undefined) {
+            const member = self.guild?.members.cache.find(m => m.user.id === self.bot?.user?.id);
+            member?.roles.add(factorioNerdRole);
+            return factorioNerdRole; // role exists
         }
 
-        return await self.guild?.roles.create({
+        factorioNerdRole = await self.guild?.roles.create({
             data: {
                 name: roleName,
                 color: roleColor
             },
             reason: 'Factorio players can see server channels'
         });
+
+        self.guild?.roles.add(self.bot.user);
+        return factorioNerdRole;
     }
 
     // creates facotrio server category if it does not exist
@@ -227,9 +244,16 @@ export class DiscordManager {
                 }
 
                 // create the category channnel
-                return await self.guild.channels.create(categoryName, {
-                    type: 'category',
+                const cataChannel = await self.guild.channels.create(categoryName, {
+                    type: 'category'
                 });
+
+                // do not allow everyone to see this channel
+                const botRole = self.guild.roles.cache.find(r => r.name === self.bot?.user?.username);
+                if (botRole !== undefined) {
+                    await cataChannel.updateOverwrite(botRole, { VIEW_CHANNEL: true });
+                    await cataChannel.updateOverwrite(botRole, { MANAGE_CHANNELS: true });
+                }
             }
             // we couldn't find the guild...thats weird
             console.error('We couldnt find the guild we are in...');
@@ -244,6 +268,7 @@ export class DiscordManager {
 
     // deletes factorio server category
     private async deleteCategory(categoryName: string) {
+        console.log('delete cata');
         const self = this;
 
         try {
@@ -298,11 +323,17 @@ export class DiscordManager {
                         await sm.setParent(category);
 
                         // do not allow everyone to see this channel
-                        await sm.updateOverwrite(self.guild.roles.everyone, { VIEW_CHANNEL: false});
+                        await sm.updateOverwrite(self.guild.roles.everyone, { VIEW_CHANNEL: false });
 
                         // allow role to see channel
                         if (self.nerdRole !== undefined) {
-                            await sm.updateOverwrite(self.nerdRole, { VIEW_CHANNEL: true})
+                            await sm.updateOverwrite(self.nerdRole, { VIEW_CHANNEL: true });
+                        }
+
+                        const botRole = self.guild.roles.cache.find(r => r.name === self.bot?.user?.username);
+                        if (botRole !== undefined) {
+                            await sm.updateOverwrite(botRole, { VIEW_CHANNEL: true });
+                            await sm.updateOverwrite(botRole, { MANAGE_CHANNELS: true });
                         }
 
                         return sm;
@@ -391,11 +422,11 @@ export class DiscordManager {
                         await sm.setParent(category);
 
                         // do not allow everyone to see this channel
-                        await sm.updateOverwrite(self.guild.roles.everyone, { VIEW_CHANNEL: false});
+                        await sm.updateOverwrite(self.guild.roles.everyone, { VIEW_CHANNEL: false });
 
                         // allow role to see channel
                         if (self.nerdRole !== undefined) {
-                            await sm.updateOverwrite(self.nerdRole, { VIEW_CHANNEL: true})
+                            await sm.updateOverwrite(self.nerdRole, { VIEW_CHANNEL: true })
                         }
 
                         return sm;

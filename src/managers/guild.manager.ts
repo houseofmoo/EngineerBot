@@ -228,7 +228,7 @@ export class GuildManager {
         self.gameServerManagers.push(gsm);
 
         // create discord channel
-        await self.discordManager.addNewChannel(gsm.serverName);
+        await self.discordManager.addNewChannel(gsm.serverName.toLowerCase());
 
         // send results to management channel
         self.discordEmitter.emit('sendManagementMsg', `${serverName} using ${token} is now being managed`);
@@ -298,7 +298,7 @@ export class GuildManager {
 
         const channel = self.discordManager.getChannel(serverName);
         if (channel !== undefined) {
-            self.discordManager.removeChannel(channel.channel);
+            self.discordManager.remove(channel);
         }
         self.discordEmitter.emit('sendManagementMsg', `${serverName} using ${token} removed from server list`);
     }
