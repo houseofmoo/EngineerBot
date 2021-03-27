@@ -128,6 +128,14 @@ export class ServerCommands {
                 action: async (commandId: string, args: string[],  message: discord.Message) => { }
             },
             {
+                commandId: ServerCommand.info,
+                minArgCount: 0,
+                maxArgCount: 0,
+                format: `${config.bot.commandPrefix}${ServerCommand.info}`,
+                help: `information about the server`,
+                action: async (commandId: string, args: string[],  message: discord.Message) => { }
+            },
+            {
                 commandId: ServerCommand.commands,
                 minArgCount: 0,
                 maxArgCount: 0,

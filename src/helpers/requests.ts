@@ -85,7 +85,6 @@ export async function chat(visitSecret: string, launchId: string, username: stri
     })
 }
 
-
 export async function getModAuthToken(username: string, password: string) {
     return await axios.post(urls.mod.authUrl, qs.stringify({
         username: username,
@@ -107,15 +106,19 @@ export async function downloadMod(username: string, token: string, subUrl: strin
     });
 }
 
-export async function uploadModToServer(visitSecret: string, mod: fs.ReadStream) {
-    const form = new FormData();
-    form.append('file', mod);
-    const requestConfig = {
-        headers: {
-            'Authorization': `Bearer ${visitSecret}`,
-            ...form.getHeaders()
-        },
-    }
+export async function uploadModToServer(visitSecret: string, mod: Buffer) {
+    // const form = new FormData();
+    // form.append('file', mod);
+    // const requestConfig = {
+    //     headers: {
+    //         'Authorization': `Bearer ${visitSecret}`,
+    //         ...form.getHeaders()
+    //     },
+    // }
 
-    return await axios.post(urls.gameServer.modUpload, form, requestConfig);
+    return await axios.post(urls.gameServer.modUpload, {
+        visitSecret: visitSecret,
+        file: mod,
+        size: mod.length
+    });
 }

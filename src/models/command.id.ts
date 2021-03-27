@@ -14,6 +14,7 @@ export enum ServerCommand {
     promoteremove = "promoteremove",
     promotelist = "promotelist",
     status = "status",
+    info = "info",
     commands = "commands"
 }
 
