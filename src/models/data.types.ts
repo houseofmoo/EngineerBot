@@ -3,7 +3,6 @@ export type Server = {
     name: string;
     token: string;
     region: string;
-    version: string;
     admins: string[];
 }
 

@@ -219,7 +219,6 @@ export class GuildManager {
             name: serverName,
             token: token,
             region: 'us-west',
-            version: '1.1.27',
             admins: []
         });
         const savesResult = await addSaves(self.guildId, token);

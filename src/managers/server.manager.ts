@@ -23,6 +23,7 @@ export class ServerManager {
     serverState: ServerState;
     serverIp: string;
     previousLog: string; // we need this cause the game server likes to send duplicate logs...
+    gameVersion: string;
     readonly validSlots: string[];
 
     modHandler: ModHandler;
@@ -42,6 +43,7 @@ export class ServerManager {
         this.serverState = ServerState.Offline;
         this.serverIp = '';
         this.previousLog = '';
+        this.gameVersion = '';
         this.validSlots = ["slot1", "slot2", "slot3", "slot4", "slot5", "slot6", "slot7", "slot8", "slot9"];
 
         this.modHandler = new ModHandler();
@@ -332,7 +334,6 @@ export class ServerManager {
     async activateMod(commandId: string, args: string[], message: discord.Message) {
         const self = this;
 
-
         const slotId = args.shift();
         const modName = args.join(' ');
 
@@ -481,7 +482,7 @@ export class ServerManager {
                     await Promise.all(requests);
                 }
 
-                await startServer(self.visitSecret, 'us-west', slotId, '1.1.27');
+                await startServer(self.visitSecret, 'us-west', slotId, self.gameVersion);
                 return;
 
             case ServerState.Starting:
@@ -570,7 +571,6 @@ export class ServerManager {
             name: self.serverName,
             token: self.serverToken,
             region: 'us-west',
-            version: '1.1.27',
             admins: serverData.data.admins,
         }
         updatedServer.admins.push(username.toLowerCase()); // always insert names using lower case
@@ -589,7 +589,6 @@ export class ServerManager {
             name: self.serverName,
             token: self.serverToken,
             region: 'us-west',
-            version: '1.1.27',
             admins: serverData.data.admins,
         }
         const index = updatedServer.admins.indexOf(username.toLowerCase()); // all user names are lower case
@@ -712,11 +711,17 @@ export class ServerManager {
                 break;
 
             case 'regions':
-                //console.log('capture regions');
+                // for (const item in json.options) {
+                //     console.log(`${item}: ${json.options[item]}`);
+                // }
                 break;
 
             case 'versions':
-                //console.log('capture versions');
+                // capture the latest version
+                for (const item in json.options) {
+                    self.gameVersion = item;
+                    break;
+                }
                 break;
         }
     }
