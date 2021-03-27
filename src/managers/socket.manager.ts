@@ -206,9 +206,6 @@ export class SocketManager {
             return;
         }
 
-        console.log(`prev log: ${self.previousLog}`);
-        console.log(`new log: ${json.line}`);
-
         // if we recieve a duplicate message, ignore it
         if (self.previousLog == json.line) {
             return;
