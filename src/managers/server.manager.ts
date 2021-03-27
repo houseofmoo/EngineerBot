@@ -182,7 +182,7 @@ export class ServerManager {
         // confirm command and args are valid
         const command = self.serverCommands.getServerCommand(commandId);
         if (command === undefined) {
-            this.discordEmitter.emit('sendGameServerMsg', self.serverName, `I do not know how to do that: ${commandId}`);
+            this.discordEmitter.emit('sendGameServerMsg', self.serverName, `I do not know how to do that: ${commandId}. type !commands for help`);
             return;
         }
         else if (args.length < command.minArgCount || args.length > command.maxArgCount) {

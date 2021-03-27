@@ -364,7 +364,7 @@ export class DiscordManager {
 
     private async createVoiceChannel(channelName: string, categoryChannel: discord.CategoryChannel | undefined) {
         const self = this;
-
+        channelName = channelName + ' yelling place';
         try {
             // if guild exists...which it should
             if (self.guild !== undefined) {
