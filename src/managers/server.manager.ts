@@ -148,6 +148,9 @@ export class ServerManager {
 
         self.status = self.status.bind(self);
         self.serverCommands.addServerAction(ServerCommand.status, self.status);
+
+        self.info = self.info.bind(self);
+        self.serverCommands.addServerAction(ServerCommand.info, self.info);
     }
 
     private removeListeners() {
