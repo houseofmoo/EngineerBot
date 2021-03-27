@@ -8,8 +8,7 @@ import { getServer, updateServer, removeServer } from '../database/server.db';
 import { getGameMods, getGameMod, addGameMod, removeAllMods, updateGameMod } from '../database/mods.db';
 import { addSaves, getSaves, removeSaves, updateSaves } from '../database/saves.db';
 import { Server } from '../models/data.types';
-import { ServerState } from '../models/server.state';
-import { ServerCommand } from '../models/command.id';
+import { ServerState, ServerEvent, ServerCommandId } from '../models/enumerations'
 import { ServerCommands } from '../commands/server.commands';
 import config from '../data/config.json'
 
@@ -47,7 +46,7 @@ export class ServerManager {
         this.validSlots = ["slot1", "slot2", "slot3", "slot4", "slot5", "slot6", "slot7", "slot8", "slot9"];
 
         this.modHandler = new ModHandler();
-        this.socketHandler = new SocketManager(this.serverToken);
+        this.socketHandler = new SocketManager(this.serverName, this.serverToken);
         this.discordEmitter = discordEmitter;
 
         this.serverCommands = new ServerCommands();
@@ -58,119 +57,92 @@ export class ServerManager {
     }
 
     private addListeners() {
-        this.captureConnected = this.captureConnected.bind(this);
-        this.socketHandler.socketEmitter.addListener('websocketConnected', this.captureConnected);
+        const self = this;
 
-        this.captureConnectionFail = this.captureConnectionFail.bind(this);
-        this.socketHandler.socketEmitter.addListener('websocketConnectionFail', this.captureConnectionFail);
+        self.captureSocketStatus = self.captureSocketStatus.bind(self);
+        self.socketHandler.socketEmitter.addListener('socketStatus', self.captureSocketStatus);
+        
+        self.captureSecret = self.captureSecret.bind(self);
+        self.socketHandler.socketEmitter.addListener('receivedSecret', self.captureSecret);
+        
+        self.captureSaves = self.captureSaves.bind(self);
+        self.socketHandler.socketEmitter.addListener('receivedSaves', self.captureSaves);
 
-        this.captureError = this.captureError.bind(this);
-        this.socketHandler.socketEmitter.addListener('websocketError', this.captureError);
+        self.captureVersions = self.captureVersions.bind(self);
+        self.socketHandler.socketEmitter.addListener('receivedVersions', self.captureVersions);
+        
+        self.captureRegions = self.captureRegions.bind(self);
+        self.socketHandler.socketEmitter.addListener('receivedRegions', self.captureRegions);
+        
+        self.captureMods = self.captureMods.bind(self);
+        self.socketHandler.socketEmitter.addListener('receivedMods', self.captureMods);
 
-        this.captureClose = this.captureClose.bind(this);
-        this.socketHandler.socketEmitter.addListener('websocketClose', this.captureClose);
+        
+        self.captureStateChange = self.captureStateChange.bind(self);
+        self.socketHandler.socketEmitter.addListener('receivedState', self.captureStateChange);
 
-        this.captureVisit = this.captureVisit.bind(this);
-        this.socketHandler.socketEmitter.addListener('receivedVisit', this.captureVisit);
-
-        this.captureOptions = this.captureOptions.bind(this);
-        this.socketHandler.socketEmitter.addListener('receivedOptions', this.captureOptions);
-
-        this.captureSlot = this.captureSlot.bind(this);
-        this.socketHandler.socketEmitter.addListener('receivedSlot', this.captureSlot);
-
-        this.captureMods = this.captureMods.bind(this);
-        this.socketHandler.socketEmitter.addListener('receivedMods', this.captureMods);
-
-        this.captureStarting = this.captureStarting.bind(this);
-        this.socketHandler.socketEmitter.addListener('receivedStarting', this.captureStarting);
-
-        this.captureRunning = this.captureRunning.bind(this);
-        this.socketHandler.socketEmitter.addListener('receivedRunning', this.captureRunning);
-
-        this.captureStopping = this.captureStopping.bind(this);
-        this.socketHandler.socketEmitter.addListener('receivedStopping', this.captureStopping);
-
-        this.captureInfo = this.captureInfo.bind(this);
-        this.socketHandler.socketEmitter.addListener('receivedInfo', this.captureInfo);
-
-        this.captureLog = this.captureLog.bind(this);
-        this.socketHandler.socketEmitter.addListener('receivedLog', this.captureLog);
-
-        this.captureConsole = this.captureConsole.bind(this);
-        this.socketHandler.socketEmitter.addListener('receivedConsole', this.captureConsole);
-
-        this.captureIdle = this.captureIdle.bind(this);
-        this.socketHandler.socketEmitter.addListener('receivedIdle', this.captureIdle);
+        self.captureInfo = self.captureInfo.bind(self);
+        self.socketHandler.socketEmitter.addListener('receivedInfo', self.captureInfo);
     }
 
     private addActions() {
         const self = this;
         self.listSaves = self.listSaves.bind(self);
-        self.serverCommands.addServerAction(ServerCommand.saves, self.listSaves);
+        self.serverCommands.addServerAction(ServerCommandId.saves, self.listSaves);
 
         self.installMod = self.installMod.bind(self);
-        self.serverCommands.addServerAction(ServerCommand.modinstall, self.installMod);
+        self.serverCommands.addServerAction(ServerCommandId.modinstall, self.installMod);
 
         self.updateMod = self.updateMod.bind(self);
-        self.serverCommands.addServerAction(ServerCommand.modupdate, self.updateMod);
+        self.serverCommands.addServerAction(ServerCommandId.modupdate, self.updateMod);
 
         self.deleteMod = self.deleteMod.bind(self);
-        self.serverCommands.addServerAction(ServerCommand.moddelete, self.deleteMod);
+        self.serverCommands.addServerAction(ServerCommandId.moddelete, self.deleteMod);
 
         self.activateMod = self.activateMod.bind(self);
-        self.serverCommands.addServerAction(ServerCommand.modon, self.activateMod);
+        self.serverCommands.addServerAction(ServerCommandId.modon, self.activateMod);
 
         self.deactivateMod = self.deactivateMod.bind(self);
-        self.serverCommands.addServerAction(ServerCommand.modoff, self.deactivateMod);
+        self.serverCommands.addServerAction(ServerCommandId.modoff, self.deactivateMod);
 
         self.listMods = self.listMods.bind(self);
-        self.serverCommands.addServerAction(ServerCommand.mods, self.listMods);
+        self.serverCommands.addServerAction(ServerCommandId.mods, self.listMods);
 
         self.serverStart = self.serverStart.bind(self);
-        self.serverCommands.addServerAction(ServerCommand.start, self.serverStart);
+        self.serverCommands.addServerAction(ServerCommandId.start, self.serverStart);
 
         self.serverStop = self.serverStop.bind(self);
-        self.serverCommands.addServerAction(ServerCommand.stop, self.serverStop);
+        self.serverCommands.addServerAction(ServerCommandId.stop, self.serverStop);
 
         self.sendMessage = self.sendMessage.bind(self);
-        self.serverCommands.addServerAction(ServerCommand.msg, self.sendMessage);
+        self.serverCommands.addServerAction(ServerCommandId.msg, self.sendMessage);
 
         self.promote = self.promote.bind(self);
-        self.serverCommands.addServerAction(ServerCommand.promote, self.promote);
+        self.serverCommands.addServerAction(ServerCommandId.promote, self.promote);
 
         self.addPromote = self.addPromote.bind(self);
-        self.serverCommands.addServerAction(ServerCommand.promoteadd, self.addPromote);
+        self.serverCommands.addServerAction(ServerCommandId.promoteadd, self.addPromote);
 
         self.removePromote = self.removePromote.bind(self);
-        self.serverCommands.addServerAction(ServerCommand.promoteremove, self.removePromote);
+        self.serverCommands.addServerAction(ServerCommandId.promoteremove, self.removePromote);
 
         self.promoteList = self.promoteList.bind(self);
-        self.serverCommands.addServerAction(ServerCommand.promotelist, self.promoteList);
+        self.serverCommands.addServerAction(ServerCommandId.promotelist, self.promoteList);
 
-        self.status = self.status.bind(self);
-        self.serverCommands.addServerAction(ServerCommand.status, self.status);
-
-        self.info = self.info.bind(self);
-        self.serverCommands.addServerAction(ServerCommand.info, self.info);
+        self.info = self.info.bind(self);   // these two commands return the same information
+        self.serverCommands.addServerAction(ServerCommandId.status, self.info);
+        self.serverCommands.addServerAction(ServerCommandId.info, self.info);
     }
 
     private removeListeners() {
-        this.socketHandler.socketEmitter.removeAllListeners('websocketConnected');
-        this.socketHandler.socketEmitter.removeAllListeners('websocketConnectionFail');
-        this.socketHandler.socketEmitter.removeAllListeners('websocketError');
-        this.socketHandler.socketEmitter.removeAllListeners('websocketClose');
-        this.socketHandler.socketEmitter.removeAllListeners('receivedVisit');
-        this.socketHandler.socketEmitter.removeAllListeners('receivedOptions');
-        this.socketHandler.socketEmitter.removeAllListeners('receivedSlot');
+        this.socketHandler.socketEmitter.removeAllListeners('socketStatus');
+        this.socketHandler.socketEmitter.removeAllListeners('receivedSecret');
+        this.socketHandler.socketEmitter.removeAllListeners('receivedSaves');
+        this.socketHandler.socketEmitter.removeAllListeners('receivedVersions');
+        this.socketHandler.socketEmitter.removeAllListeners('receivedRegions');
         this.socketHandler.socketEmitter.removeAllListeners('receivedMods');
-        this.socketHandler.socketEmitter.removeAllListeners('receivedStarting');
-        this.socketHandler.socketEmitter.removeAllListeners('receivedRunning');
-        this.socketHandler.socketEmitter.removeAllListeners('receivedStopping');
+        this.socketHandler.socketEmitter.removeAllListeners('receivedState');
         this.socketHandler.socketEmitter.removeAllListeners('receivedInfo');
-        this.socketHandler.socketEmitter.removeAllListeners('receivedLog');
-        this.socketHandler.socketEmitter.removeAllListeners('receivedConsole');
-        this.socketHandler.socketEmitter.removeAllListeners('receivedIdle');
     }
 
     private isValidSlot(slotId: string) {
@@ -193,7 +165,7 @@ export class ServerManager {
         }
 
         // if user is asking for a list of commands
-        if (command.commandId === ServerCommand.commands) {
+        if (command.commandId === ServerCommandId.commands) {
             this.discordEmitter.emit('sendGameServerMsg', self.serverName, self.serverCommands.getServerCommands());
             return;
         }
@@ -202,15 +174,18 @@ export class ServerManager {
         command.action(commandId, args, message);
     }
 
-    private setState(newState: ServerState) {
+    private setState(newState: ServerState, launchId: string, serverIp: string) {
         const self = this;
 
         if (newState === self.serverState) {
             return;
         }
 
-        // set the new state and emit a message about state change
+        self.launchId = launchId;
+        self.serverIp = serverIp;
         self.serverState = newState;
+
+        // emit a message about state change
         switch (self.serverState) {
             case ServerState.Online:
                 this.discordEmitter.emit('sendGameServerMsg', self.serverName, `Online at ${self.serverIp}`);
@@ -221,7 +196,7 @@ export class ServerManager {
                 return;
 
             case ServerState.Starting:
-                this.discordEmitter.emit('sendGameServerMsg', self.serverName, 'Server booting up');
+                this.discordEmitter.emit('sendGameServerMsg', self.serverName, 'Server starting up');
                 return;
 
             case ServerState.Stopping:
@@ -610,28 +585,6 @@ export class ServerManager {
         this.discordEmitter.emit('sendGameServerMsg', self.serverName, promotable.join(', '));
     }
 
-    async status(commandId: string, args: string[], message: discord.Message) {
-        const self = this;
-
-        switch (self.serverState) {
-            case ServerState.Online:
-                this.discordEmitter.emit('sendGameServerMsg', self.serverName, `Online at ${self.serverIp}`);
-                break;
-
-            case ServerState.Offline:
-                this.discordEmitter.emit('sendGameServerMsg', self.serverName, 'Server offline');
-                return;
-
-            case ServerState.Starting:
-                this.discordEmitter.emit('sendGameServerMsg', self.serverName, 'Server booting up');
-                return;
-
-            case ServerState.Stopping:
-                this.discordEmitter.emit('sendGameServerMsg', self.serverName, 'Server shutting down');
-                return;
-        }
-    }
-
     async info(commandId: string, args: string[], message: discord.Message) {
         const self = this;
         const infoEmbed = new discord.MessageEmbed();
@@ -645,96 +598,61 @@ export class ServerManager {
         this.discordEmitter.emit('sendGameServerMsg', self.serverName, infoEmbed);
     }
 
-    captureConnected() {
+    captureSocketStatus(msg: string, err: Error | undefined) {
         const self = this;
-        console.error(`${self.serverName} websocket is connected`);
-    }
+        self.discordEmitter.emit('sendGameServerMsg', self.serverName, msg);
 
-    captureConnectionFail() {
-        const self = this;
-        self.visitSecret = '';
-        self.launchId = '';
-        console.error(`${self.serverName} websocket connection failed`);
-        this.discordEmitter.emit('sendGameServerMsg', self.serverName, 'Failed to connect to server, attempting reconnect');
-        setTimeout(self.socketHandler.connect, 10000);
-    }
-
-    captureError() {
-        const self = this;
-        self.visitSecret = '';
-        self.launchId = '';
-        console.error(`${self.serverName} websocket had an error`);
-    }
-
-    captureClose() {
-        const self = this;
-        self.visitSecret = '';
-        self.launchId = '';
-        console.error(`${self.serverName} websocket connection closed`);
-        this.discordEmitter.emit('sendGameServerMsg', self.serverName, 'lost connection to server. attempting reconnect');
-        setTimeout(self.socketHandler.connect, 10000);
-    }
-
-    async captureVisit(json: any) {
-        const self = this;
-        self.visitSecret = json.secret;
-        if (self.visitSecret !== undefined) {
-            await login(self.visitSecret, self.serverToken)
+        if (err !== undefined) {
+            console.log(`${self.serverName} websocket error: ${err}`);
         }
     }
 
-    async captureOptions(json: any) {
+    async captureSecret(secret: string) {
+        const self = this;
+        self.visitSecret = secret;
+        await login(self.visitSecret, self.serverToken);
+    }
+
+    async captureSaves(json: any) {
         const self = this;
 
-        switch (json.name) {
-            case 'saves':
-                // confirm document exists, if it doesnt create it
-                let saves: any = await getSaves(self.guildId, self.serverToken);
-                if (saves === undefined) {
-                    saves = await addSaves(self.guildId, self.serverToken);
-                }
+        // confirm document exists, if it doesnt create it
+        let saves: any = await getSaves(self.guildId, self.serverToken);
+        if (saves === undefined) {
+            saves = await addSaves(self.guildId, self.serverToken);
+        }
 
-                // update document
-                await updateSaves({
-                    guildId: self.guildId,
-                    token: self.serverToken,
-                    slot1: json.options.slot1,
-                    slot2: json.options.slot2,
-                    slot3: json.options.slot3,
-                    slot4: json.options.slot4,
-                    slot5: json.options.slot5,
-                    slot6: json.options.slot6,
-                    slot7: json.options.slot7,
-                    slot8: json.options.slot8,
-                    slot9: json.options.slot9,
-                }, saves.ref);
-                break;
+        // update document
+        await updateSaves({
+            guildId: self.guildId,
+            token: self.serverToken,
+            slot1: json.options.slot1,
+            slot2: json.options.slot2,
+            slot3: json.options.slot3,
+            slot4: json.options.slot4,
+            slot5: json.options.slot5,
+            slot6: json.options.slot6,
+            slot7: json.options.slot7,
+            slot8: json.options.slot8,
+            slot9: json.options.slot9,
+        }, saves.ref);
+    }
 
-            case 'regions':
-                // for (const item in json.options) {
-                //     console.log(`${item}: ${json.options[item]}`);
-                // }
-                break;
+    captureRegions(json: any) {
+        // TODO: handle regions
+    }
 
-            case 'versions':
-                // capture the latest version
-                for (const item in json.options) {
-                    self.gameVersion = item;
-                    break;
-                }
-                break;
+    captureVersions(json: any) {
+        const self = this;
+        // capture the latest version
+        for (const item in json.options) {
+            self.gameVersion = item;
+            break;
         }
     }
 
-    async captureSlot(json: any) {
-        // unused for now...
-        // returns information for each slot that contains save information
-    }
-
-    async captureMods(json: any) {
+    async captureMods(serverMods: any) {
         const self = this;
-
-        // when we first connect, or when a mod is uploaded/deleted we receive this event
 
         // check for mods
         const response: any = await getGameMods(self.guildId, self.serverToken);
@@ -742,7 +660,6 @@ export class ServerManager {
             // remove all mods since server is the baseline
             await removeAllMods(self.guildId, self.serverToken);
             const knownMods = response.data;
-            const serverMods = json.mods;
             const requests = [];
 
             for (const mod of serverMods) {
@@ -766,9 +683,8 @@ export class ServerManager {
 
             await Promise.all(requests);
         }
+        // no mods existed
         else {
-            // no mods existed
-            const serverMods = json.mods;
             const requests = [];
             for (const mod of serverMods) {
                 const split = (mod.text as string).trim().split(/ +/);
@@ -790,94 +706,36 @@ export class ServerManager {
         }
     }
 
-    captureStarting(json: any): void {
+    captureStateChange(newState: ServerState, launchId: string, serverIp: string) {
         const self = this;
-        self.setState(ServerState.Starting);
-        self.launchId = json.launchId;
+        self.setState(newState, launchId, serverIp);
     }
 
-    captureRunning(json: any): void {
-        const self = this;
-        self.launchId = json.launchId;
-        self.serverIp = json.socket;
-        self.setState(ServerState.Online);
-    }
-
-    captureStopping(json: any): void {
-        const self = this;
-        self.setState(ServerState.Stopping);
-        self.serverIp = '';
-        self.launchId = '';
-    }
-
-    captureInfo(json: any): void {
+    async captureInfo(msg: string, type: ServerEvent) {
         const self = this;
 
-        switch (json.line) {
-            case 'provisioning virtual machine, this will take an extra minute':
-                self.discordEmitter.emit('sendGameServerMsg', self.serverName, `Start up is slowed, provisioning virtual machine`);
-                break;
-        }
-    }
-
-    async captureLog(json: any) {
-        const self = this;
-
-        // ignore log message more than 10 seconds old
-        if (new Date().getTime() - json.time > 10000) {
-            return;
-        }
-
-        // if we recieve a duplicate message, ignore it
-        if (self.previousLog === json.line) {
-            return;
-        }
-
-        // capture log to check in the future
-        self.previousLog = json.line;
-
-        // TODO: double print bug on leave...sometimes...
-        // also occurs on join no idea how
-
-        // handle specific events we care about
-        if (json.line.includes('[JOIN]')) {
-            const serverData: any = await getServer(self.guildId, self.serverToken);
-            if (serverData !== undefined) {
-                // search for a valid user name in the text
-                const words = json.line.split(' ');
-                for (const word of words) {
-                    if (serverData.data.admins.includes(word.toLowerCase())) {
-                        await promote(self.visitSecret, self.launchId, word);
+        switch (type) {
+            case ServerEvent.Join:
+                const serverData: any = await getServer(self.guildId, self.serverToken);
+                if (serverData !== undefined) {
+                    // search for a valid user name in the text
+                    const words = msg.split(' ');
+                    for (const word of words) {
+                        if (serverData.data.admins.includes(word.toLowerCase())) {
+                            await promote(self.visitSecret, self.launchId, word);
+                        }
                     }
                 }
-            }
 
-            self.discordEmitter.emit('sendGameServerMsg', self.serverName, json.line);
+                self.discordEmitter.emit('sendGameServerMsg', self.serverName, msg);
+                break;
+
+            case ServerEvent.Other:
+                self.discordEmitter.emit('sendGameServerMsg', self.serverName, msg);
+                break
+
+            default:
+                break;
         }
-        // things we care about, ignore everything else
-        else if (json.line.includes('[LEAVE]') ||
-            json.line.includes('[CHAT]') ||
-            json.line.includes('already an admin') ||
-            json.line.includes('[PROMOTE]') ||
-            json.line.includes('[COMMAND]')) {
-
-            // ignore pings on land and pings on train... want to ignore all pings but this is good enough
-            if (json.line.includes('[gps=') || json.line.includes('[train=')) {
-                return;
-            }
-
-            self.discordEmitter.emit('sendGameServerMsg', self.serverName, json.line);
-        }
-    }
-
-    captureConsole(json: any): void {
-        // do not care!
-    }
-
-    captureIdle(json: any): void {
-        const self = this;
-        self.setState(ServerState.Offline);
-        self.serverIp = '';
-        self.launchId = '';
     }
 }

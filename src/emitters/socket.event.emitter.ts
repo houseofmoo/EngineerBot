@@ -1,25 +1,18 @@
 import { TypedEmitter } from 'tiny-typed-emitter';
-import discord from 'discord.js';
+import { ServerState, ServerEvent } from '../models/enumerations';
 
 interface ISocketEventEmitter {
     // websocket status
-    websocketConnected: () => void;
-    websocketConnectionFail: (error: Error) => void;
-    websocketError: (error: Error) => void;
-    websocketClose: () => void;
- 
+    socketStatus: (msg: string, err: Error | undefined) => void;
+
     // websocket messages
-    receivedVisit: (json: any) => void;
-    receivedOptions: (json: any) => void;
-    receivedSlot: (json: any) => void;
-    receivedMods: (json: any) => void;
-    receivedStarting: (json: any) => void;
-    receivedRunning: (json: any) => void;
-    receivedStopping: (json: any) => void;
-    receivedInfo: (json: any) => void;
-    receivedLog: (json: any) => void;
-    receivedConsole: (json: any) => void;
-    receivedIdle: (json: any) => void;
+    receivedSecret: (secret: string) => void;
+    receivedSaves: (json: any) => void;
+    receivedVersions: (json: any) => void;
+    receivedRegions: (json: any) => void;
+    receivedMods: (serverMods: any) => void;
+    receivedState: (newState: ServerState, launchId: string, serverIp: string) => void;
+    receivedInfo: (msg: string, type: ServerEvent) => void;
  }
  
  export class SocketEventEmitter extends TypedEmitter<ISocketEventEmitter> {

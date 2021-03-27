@@ -1,5 +1,5 @@
 import discord from 'discord.js';
-import { GuildCommand } from '../models/command.id';
+import { GuildCommandId } from '../models/enumerations';
 import config from '../data/config.json'
 
 export class GuildCommands {
@@ -8,58 +8,66 @@ export class GuildCommands {
     constructor() {
         this.guildCommandList = [
             {
-                commandId: GuildCommand.servercreate,
+                commandId: GuildCommandId.servercreate,
                 minArgCount: 1,
                 maxArgCount: 1,
-                format: `${config.bot.commandPrefix}${GuildCommand.servercreate} serverName`,
+                format: `${config.bot.commandPrefix}${GuildCommandId.servercreate} serverName`,
                 help: `Generates a new server token and adds server to server list`,
                 action: async (commandId: string, args: string[], message: discord.Message) => { }
             },
             {
-                commandId: GuildCommand.serveradd,
+                commandId: GuildCommandId.serveradd,
                 minArgCount: 2,
                 maxArgCount: 2,
-                format: `${config.bot.commandPrefix}${GuildCommand.serveradd} serverName serverToken`,
+                format: `${config.bot.commandPrefix}${GuildCommandId.serveradd} serverName serverToken`,
                 help: `Adds a new server to server list`,
                 action: async (commandId: string, args: string[], message: discord.Message) => { }
             },
             {
-                commandId: GuildCommand.serverremove,
+                commandId: GuildCommandId.serverremove,
                 minArgCount: 2,
                 maxArgCount: 2,
-                format: `${config.bot.commandPrefix}${GuildCommand.serverremove} serverName serverToken`,
+                format: `${config.bot.commandPrefix}${GuildCommandId.serverremove} serverName serverToken`,
                 help: `Removes a server from server list. Contents of server are unaffected and can be viewed at https://factorio.zone`,
                 action: async (commandId: string, args: string[], message: discord.Message) => { }
             },
             {
-                commandId: GuildCommand.list,
+                commandId: GuildCommandId.list,
                 minArgCount: 0,
                 maxArgCount: 0,
-                format: `${config.bot.commandPrefix}${GuildCommand.list}`,
+                format: `${config.bot.commandPrefix}${GuildCommandId.list}`,
                 help: `Lists all servers`,
                 action: async (commandId: string, args: string[], message: discord.Message) => { }
             },
             {
-                commandId: GuildCommand.cheats,
+                commandId: GuildCommandId.servers,
                 minArgCount: 0,
                 maxArgCount: 0,
-                format: `${config.bot.commandPrefix}${GuildCommand.cheats}`,
+                format: `${config.bot.commandPrefix}${GuildCommandId.servers}`,
+                help: `Lists all servers`,
+                action: async (commandId: string, args: string[], message: discord.Message) => { }
+            },
+            {
+                commandId: GuildCommandId.cheats,
+                minArgCount: 0,
+                maxArgCount: 0,
+                format: `${config.bot.commandPrefix}${GuildCommandId.cheats}`,
                 help: `Lists helpful cheat commands. You will lose the ability to get achievements if you use these`,
                 action: async (commandId: string, args: string[], message: discord.Message) => { }
             },
             {
-                commandId: GuildCommand.newplayer,
+                commandId: GuildCommandId.newplayer,
                 minArgCount: 0,
                 maxArgCount: 0,
-                format: `${config.bot.commandPrefix}${GuildCommand.newplayer}`,
+                format: `${config.bot.commandPrefix}${GuildCommandId.newplayer}`,
                 help: `Sets user role to Factorio-Nerd, allowing user to view factorio servers`,
                 action: async (commandId: string, args: string[], message: discord.Message) => { }
             },
             {
-                commandId: GuildCommand.commands,
+                commandId: GuildCommandId.commands,
                 minArgCount: 0,
                 maxArgCount: 0,
-                format: `${config.bot.commandPrefix}${GuildCommand.commands}`,
+                format: `${config.bot.commandPrefix}${GuildCommandId.commands}`,
                 help: `return a list of available guild commands`,
                 action: async (commandId: string, args: string[], message: discord.Message) => { }
             }

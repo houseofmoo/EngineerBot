@@ -1,7 +1,7 @@
 import discord from 'discord.js'
 import websocket from 'websocket';
 import { GuildCommands } from '../commands/guild.commands';
-import { GuildCommand } from '../models/command.id';
+import { GuildCommandId } from '../models/enumerations';
 import { getCommandFromMessage, getCommandArgsFromMessage } from '../helpers/command.helpers.';
 import { DiscordManager } from './discord.manager';
 import { ServerManager } from './server.manager';
@@ -54,22 +54,25 @@ export class GuildManager {
     addActions() {
         const self = this;
         self.createServer = self.createServer.bind(self);
-        self.guildCommands.addGuildAction(GuildCommand.servercreate, self.createServer);
+        self.guildCommands.addGuildAction(GuildCommandId.servercreate, self.createServer);
 
         self.addServer = self.addServer.bind(self);
-        self.guildCommands.addGuildAction(GuildCommand.serveradd, self.addServer);
+        self.guildCommands.addGuildAction(GuildCommandId.serveradd, self.addServer);
 
         self.removeServer = self.removeServer.bind(self);
-        self.guildCommands.addGuildAction(GuildCommand.serverremove, self.removeServer);
+        self.guildCommands.addGuildAction(GuildCommandId.serverremove, self.removeServer);
 
         self.listServers = self.listServers.bind(self);
-        self.guildCommands.addGuildAction(GuildCommand.list, self.listServers);
+        self.guildCommands.addGuildAction(GuildCommandId.list, self.listServers);
+
+        self.listServers = self.listServers.bind(self);
+        self.guildCommands.addGuildAction(GuildCommandId.servers, self.listServers);
 
         self.listCheats = self.listCheats.bind(self);
-        self.guildCommands.addGuildAction(GuildCommand.cheats, self.listCheats);
+        self.guildCommands.addGuildAction(GuildCommandId.cheats, self.listCheats);
 
         self.newPlayer = self.newPlayer.bind(self);
-        self.guildCommands.addGuildAction(GuildCommand.newplayer, self.newPlayer);
+        self.guildCommands.addGuildAction(GuildCommandId.newplayer, self.newPlayer);
     }
 
     async remove() {
@@ -117,7 +120,7 @@ export class GuildManager {
         }
 
         // if user is asking for a list of commands
-        if (command.commandId === GuildCommand.commands) {
+        if (command.commandId === GuildCommandId.commands) {
             this.discordEmitter.emit('sendManagementMsg', self.guildCommands.getGuildCommands());
             return;
         }

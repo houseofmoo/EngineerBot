@@ -1,4 +1,4 @@
-export enum ServerCommand {
+export enum ServerCommandId {
     saves = "saves",
     modinstall = "modinstall",
     modupdate = "modupdate",
@@ -18,12 +18,25 @@ export enum ServerCommand {
     commands = "commands"
 }
 
-export enum GuildCommand {
+export enum GuildCommandId {
     servercreate = "servercreate",
     serveradd = "serveradd",
     serverremove = "serverremove",
     list = "list",
+    servers = "servers",
     cheats = "cheats",
     newplayer = "newplayer",
     commands = "commands"
+}
+
+export enum ServerEvent {
+    Join,
+    Other
+}
+
+export enum ServerState {
+    Offline = "offline",
+    Starting = "starting",
+    Online = "online",
+    Stopping = "stoppinng"
 }
