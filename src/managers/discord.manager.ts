@@ -6,7 +6,7 @@ import config from '../data/config.json';
 // manages discord interactions with a guild
 export class DiscordManager {
     readonly bot: discord.Client;
-    role: discord.Role | undefined;
+    nerdRole: discord.Role | undefined;
 
     readonly guildId: string;
     readonly guild: discord.Guild | undefined;
@@ -32,7 +32,7 @@ export class DiscordManager {
 
         try {
             // create factorio-player role
-            self.role = await self.createRole(config.discord.roleName, config.discord.color);
+            self.nerdRole = await self.createRole(config.discord.roleName, config.discord.color);
 
             // create category for our channels
             const categoryChannel = await self.createCategory(config.discord.categoryName);
@@ -134,10 +134,16 @@ export class DiscordManager {
 
     async addRoleToUser(message: discord.Message) {
         const self = this;
-        await self.guild?.roles.add(message.author.id);
+
+        // get member
+        const member = await self.guild?.members.cache.find(m => m.id === message.author.id);
+
+        // give them role
+        if (member !== undefined && self.nerdRole !== undefined) {
+            await member?.roles.add(self.nerdRole);
+        }
     }
 
-    // adds a new channel for new game servers
     async addNewChannel(channelName: string) {
         const self = this;
 
@@ -292,8 +298,8 @@ export class DiscordManager {
                         await sm.updateOverwrite(self.guild.roles.everyone, { VIEW_CHANNEL: false});
 
                         // allow role to see channel
-                        if (self.role !== undefined) {
-                            await sm.updateOverwrite(self.role, { VIEW_CHANNEL: true})
+                        if (self.nerdRole !== undefined) {
+                            await sm.updateOverwrite(self.nerdRole, { VIEW_CHANNEL: true})
                         }
 
                         return sm;
