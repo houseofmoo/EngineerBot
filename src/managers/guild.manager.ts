@@ -69,7 +69,7 @@ export class GuildManager {
         self.guildCommands.addGuildAction(GuildCommand.cheats, self.listCheats);
 
         self.newPlayer = self.newPlayer.bind(self);
-        self.guildCommands.addGuildAction(GuildCommand.newplayer, self.listCheats);
+        self.guildCommands.addGuildAction(GuildCommand.newplayer, self.newPlayer);
     }
 
     async remove() {
