@@ -43,7 +43,6 @@ export class DiscordManager {
 
             // create game server specific channels, associated webhook, and voice chat for that server
             for (const server of gameServers) {
-                console.log('creating')
                 await self.addNewChannel(server.data.name.toLowerCase());
             }
 

@@ -25,7 +25,7 @@ export class SocketManager {
 
     connect(): void {
         const self = this;
-        console.log(`connecting to ${urls.gameServer.websocket}`);
+        console.log(`${self.serverName} connecting to ${urls.gameServer.websocket}`);
         this.socket?.connect(urls.gameServer.websocket);
     }
 
@@ -206,19 +206,19 @@ export class SocketManager {
             return;
         }
 
+        console.log(`prev log: ${self.previousLog}`);
+        console.log(`new log: ${json.line}`);
+
         // if we recieve a duplicate message, ignore it
         if (self.previousLog == json.line) {
             return;
         }
 
-        // capture log to check in the future
-        self.previousLog = json.line;
-
-        // TODO: double print bug on leave...sometimes...
-        // also occurs on join no idea how
-
         // handle specific events we care about
         if (json.line.includes('[JOIN]')) {
+            // capture log to check in the future
+            self.previousLog = json.line;
+
             self.socketEmitter.emit('receivedInfo', json.line, ServerEvent.Join);
         }
         // things we care about, ignore everything else
@@ -227,6 +227,9 @@ export class SocketManager {
             json.line.includes('already an admin') ||
             json.line.includes('[PROMOTE]') ||
             json.line.includes('[COMMAND]')) {
+
+            // capture log to check in the future
+            self.previousLog = json.line;
 
             // ignore pings on land and pings on train... want to ignore all pings but this is good enough
             if (json.line.includes('[gps=') || json.line.includes('[train=')) {
