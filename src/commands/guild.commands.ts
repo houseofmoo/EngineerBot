@@ -48,14 +48,6 @@ export class GuildCommands {
                 action: async (commandId: string, args: string[], message: discord.Message) => { }
             },
             {
-                commandId: GuildCommandId.cheats,
-                minArgCount: 0,
-                maxArgCount: 0,
-                format: `${config.bot.commandPrefix}${GuildCommandId.cheats}`,
-                help: `Lists helpful cheat commands. You will lose the ability to get achievements if you use these`,
-                action: async (commandId: string, args: string[], message: discord.Message) => { }
-            },
-            {
                 commandId: GuildCommandId.newplayer,
                 minArgCount: 0,
                 maxArgCount: 0,

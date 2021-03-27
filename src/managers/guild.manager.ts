@@ -68,9 +68,6 @@ export class GuildManager {
         self.listServers = self.listServers.bind(self);
         self.guildCommands.addGuildAction(GuildCommandId.servers, self.listServers);
 
-        self.listCheats = self.listCheats.bind(self);
-        self.guildCommands.addGuildAction(GuildCommandId.cheats, self.listCheats);
-
         self.newPlayer = self.newPlayer.bind(self);
         self.guildCommands.addGuildAction(GuildCommandId.newplayer, self.newPlayer);
     }

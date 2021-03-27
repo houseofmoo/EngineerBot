@@ -136,6 +136,14 @@ export class ServerCommands {
                 action: async (commandId: string, args: string[],  message: discord.Message) => { }
             },
             {
+                commandId: ServerCommandId.cheats,
+                minArgCount: 0,
+                maxArgCount: 0,
+                format: `${config.bot.commandPrefix}${ServerCommandId.cheats}`,
+                help: `Lists helpful cheat commands`,
+                action: async (commandId: string, args: string[], message: discord.Message) => { }
+            },
+            {
                 commandId: ServerCommandId.commands,
                 minArgCount: 0,
                 maxArgCount: 0,

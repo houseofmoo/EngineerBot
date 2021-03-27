@@ -77,7 +77,6 @@ export class ServerManager {
         self.captureMods = self.captureMods.bind(self);
         self.socketHandler.socketEmitter.addListener('receivedMods', self.captureMods);
 
-        
         self.captureStateChange = self.captureStateChange.bind(self);
         self.socketHandler.socketEmitter.addListener('receivedState', self.captureStateChange);
 
@@ -132,6 +131,10 @@ export class ServerManager {
         self.info = self.info.bind(self);   // these two commands return the same information
         self.serverCommands.addServerAction(ServerCommandId.status, self.info);
         self.serverCommands.addServerAction(ServerCommandId.info, self.info);
+
+        
+        self.listCheats = self.listCheats.bind(self);
+        self.serverCommands.addServerAction(ServerCommandId.cheats, self.listCheats);
     }
 
     private removeListeners() {
@@ -596,6 +599,23 @@ export class ServerManager {
             infoEmbed.addField('IP', self.serverIp);
         }
         this.discordEmitter.emit('sendGameServerMsg', self.serverName, infoEmbed);
+    }
+
+    async listCheats(commandId: string, args: string[], message: discord.Message) {
+        const self = this;
+
+        const cheatsEmbed = new discord.MessageEmbed();
+        cheatsEmbed.setColor('#0099ff');
+        cheatsEmbed.setTitle(`Cheats`);
+
+
+        const killBitersCommand =  `/c local surface=game.player.surface
+    for key, entity in pairs(surface.find_entities_filtered({force="enemy"})) do
+        entity.destroy()
+    end`
+    cheatsEmbed.addField('Kill Biters', killBitersCommand);
+
+        this.discordEmitter.emit('sendGameServerMsg', self.serverName, cheatsEmbed);
     }
 
     captureSocketStatus(msg: string, err: Error | undefined) {

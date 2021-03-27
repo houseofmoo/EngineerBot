@@ -15,6 +15,7 @@ export enum ServerCommandId {
     promotelist = "promotelist",
     status = "status",
     info = "info",
+    cheats = "cheats",
     commands = "commands"
 }
 
@@ -24,7 +25,6 @@ export enum GuildCommandId {
     serverremove = "serverremove",
     list = "list",
     servers = "servers",
-    cheats = "cheats",
     newplayer = "newplayer",
     commands = "commands"
 }
