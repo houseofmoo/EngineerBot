@@ -48,6 +48,14 @@ export class GuildCommands {
                 action: async (commandId: string, args: string[], message: discord.Message) => { }
             },
             {
+                commandId: GuildCommand.newplayer,
+                minArgCount: 0,
+                maxArgCount: 0,
+                format: `${config.bot.commandPrefix}${GuildCommand.newplayer}`,
+                help: `Sets user role to Factorio-Nerd, allowing user to view factorio servers`,
+                action: async (commandId: string, args: string[], message: discord.Message) => { }
+            },
+            {
                 commandId: GuildCommand.commands,
                 minArgCount: 0,
                 maxArgCount: 0,

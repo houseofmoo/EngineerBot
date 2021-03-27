@@ -132,6 +132,11 @@ export class DiscordManager {
         return gsc?.channel.name;
     }
 
+    async addRoleToUser(message: discord.Message) {
+        const self = this;
+        await self.guild?.roles.add(message.author.id);
+    }
+
     // adds a new channel for new game servers
     async addNewChannel(channelName: string) {
         const self = this;

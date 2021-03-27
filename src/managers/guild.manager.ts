@@ -67,6 +67,9 @@ export class GuildManager {
 
         self.listCheats = self.listCheats.bind(self);
         self.guildCommands.addGuildAction(GuildCommand.cheats, self.listCheats);
+
+        self.newPlayer = self.newPlayer.bind(self);
+        self.guildCommands.addGuildAction(GuildCommand.newplayer, self.listCheats);
     }
 
     async remove() {
@@ -320,5 +323,11 @@ export class GuildManager {
 
     async listCheats(commandId: string, args: string[], message: discord.Message) {
         this.discordEmitter.emit('sendManagementMsg', 'a list of cheats!');
+    }
+
+    async newPlayer(commandId: string, args: string[], message: discord.Message) {
+        const self = this;
+        self.discordManager.addRoleToUser(message);
+        this.discordEmitter.emit('sendManagementMsg', 'You have been deemed worthy');
     }
 }
