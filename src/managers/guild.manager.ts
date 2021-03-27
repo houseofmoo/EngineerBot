@@ -75,7 +75,8 @@ export class GuildManager {
             await gsm.remove();
         }));
 
-        await self.discordManager.remove();
+        // if we're kicked from a channel we cannot clean up after ourselves
+        //await self.discordManager.remove();
     }
 
     receivedMessage(message: discord.Message) {

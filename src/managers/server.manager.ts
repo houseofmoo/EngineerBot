@@ -259,63 +259,61 @@ export class ServerManager {
 
     async installMod(commandId: string, args: string[], message: discord.Message) {
         const self = this;
-        // this.discordEmitter.emit('sendGameServerMsg', self.serverName, 'installing mod: not yet implemented');
+        this.discordEmitter.emit('sendGameServerMsg', self.serverName, 'installing mod: not yet implemented');
 
         // https://factorio.zone/api/mod/upload
         // expects a visitSecret, file: (binary), size: number
         // responds with 200 if OK, websocket sents a type.info that says "uploaded mod <modname>" and "stored mod <modname>"
 
-        // download mod
-        let modName = args[0].trim();
-        this.discordEmitter.emit('sendGameServerMsg', self.serverName, `Downloading ${modName}`);
+        // // download mod
+        // let modName = args[0].trim();
 
-        // get auth token
-        const token: any = await getModAuthToken(config.factorioModsLogin.username, config.factorioModsLogin.password);
-        console.log(token.status);
-        console.log(token.status === 200);
+        // // get auth token
+        // const token: any = await getModAuthToken(config.factorioModsLogin.username, config.factorioModsLogin.password);
 
-        // get download url
-        let infoResponse: any = await getModInfo(modName);
-        console.log(infoResponse.status);
-        console.log(infoResponse.status === 200);
+        // // get download url
+        // let infoResponse: any = await getModInfo(modName);
 
-        if (infoResponse !== undefined && infoResponse.status === 200 &&
-            token !== undefined && token.status === 200) {
-            console.log('attempting download');
-            // build download url
-            const subUrl = infoResponse.data.releases[0].download_url;
-            const filename = infoResponse.data.releases[0].file_name
+        // if (infoResponse !== undefined && infoResponse.status === 200 &&
+        //     token !== undefined && token.status === 200) {
+        //     console.log('attempting download');
+        //     // build download url
+        //     const subUrl = infoResponse.data.releases[0].download_url;
+        //     const filename = infoResponse.data.releases[0].file_name
 
-            // download file
-            self.discordEmitter.emit('sendGameServerMsg', self.serverName, `Downloading ${modName}`);
-            const file = fs.createWriteStream(filename);
-            const download: any = await downloadMod(config.factorioModsLogin.username, token.data[0], subUrl);
-            await download.data.pipe(file);
-            self.discordEmitter.emit('sendGameServerMsg', self.serverName, `Download complete`);
-            console.log('download complete');
+        //     // download file
+        //     self.discordEmitter.emit('sendGameServerMsg', self.serverName, `Downloading ${modName}`);
+        //     const file = fs.createWriteStream(filename);
+        //     const download: any = await downloadMod(config.factorioModsLogin.username, token.data[0], subUrl);
+        //     await download.data.pipe(file);
+        //     self.discordEmitter.emit('sendGameServerMsg', self.serverName, `Download complete`);
+        //     console.log('download complete');
 
-            // upload to server
-            //const mod = fs.createReadStream(filename);
-            const mod = fs.readFileSync(filename);
-            console.log('read stream end');
-            const uploadResponse = await uploadModToServer(self.visitSecret, mod);
-            self.discordEmitter.emit('sendGameServerMsg', self.serverName, `Uploading mod to server`);
+        //     // upload to server
+        //     //const mod = fs.createReadStream(filename);
+        //     const stats = fs.statSync(filename);
+        //     console.log(filename);
+        //     console.log(stats);
+        //     const mod = fs.createReadStream(filename);
+        //     //const uploadResponse = await uploadModToServer(self.visitSecret, mod, stats.size);
+        //     //console.log(uploadResponse);
+        //     //self.discordEmitter.emit('sendGameServerMsg', self.serverName, `Uploading mod to server`);
 
-            // mod.on('end', async () => {
-            //     self.discordEmitter.emit('sendGameServerMsg', self.serverName, `Uploading mod to server`);
-            //     const uploadResponse = await uploadModToServer(self.visitSecret, mod);
-            //     console.log(uploadResponse);
-            //     // delete local file
-            //     // fs.unlinkSync(filename, (err) => {
-            //     //     console.log(err);
-            //     //     console.log('error deleting file');
-            //     // });
-            // });
-        }
-        else {
-            this.discordEmitter.emit('sendGameServerMsg', self.serverName, `Error attempting to install: ${modName}`);
-            this.discordEmitter.emit('sendGameServerMsg', self.serverName, `Mod names are case sensitive, please try again`);
-        }
+        //     // mod.on('end', async () => {
+        //     //     self.discordEmitter.emit('sendGameServerMsg', self.serverName, `Uploading mod to server`);
+        //     //     const uploadResponse = await uploadModToServer(self.visitSecret, mod);
+        //     //     console.log(uploadResponse);
+        //     //     // delete local file
+        //     //     // fs.unlinkSync(filename, (err) => {
+        //     //     //     console.log(err);
+        //     //     //     console.log('error deleting file');
+        //     //     // });
+        //     // });
+        // }
+        // else {
+        //     this.discordEmitter.emit('sendGameServerMsg', self.serverName, `Error attempting to install: ${modName}`);
+        //     this.discordEmitter.emit('sendGameServerMsg', self.serverName, `Mod names are case sensitive, please try again`);
+        // }
     }
 
     async updateMod(commandId: string, args: string[], message: discord.Message) {
@@ -639,7 +637,6 @@ export class ServerManager {
         const self = this;
         const infoEmbed = new discord.MessageEmbed();
         infoEmbed.setColor('#0099ff');
-        infoEmbed.setTitle('Information');
         infoEmbed.addField('Name ', self.serverName);
         infoEmbed.addField('Token ', self.serverToken);
         infoEmbed.addField('Status', self.serverState);

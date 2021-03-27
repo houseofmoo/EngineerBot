@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { AxiosRequestConfig } from 'axios';
 import qs from 'query-string'
 import fs from 'fs';
 import urls from '../data/api.urls.json';
@@ -106,7 +106,7 @@ export async function downloadMod(username: string, token: string, subUrl: strin
     });
 }
 
-export async function uploadModToServer(visitSecret: string, mod: Buffer) {
+export async function uploadModToServer(visitSecret: string, mod: fs.ReadStream, size: number) {
     // const form = new FormData();
     // form.append('file', mod);
     // const requestConfig = {
@@ -115,10 +115,14 @@ export async function uploadModToServer(visitSecret: string, mod: Buffer) {
     //         ...form.getHeaders()
     //     },
     // }
-
-    return await axios.post(urls.gameServer.modUpload, {
-        visitSecret: visitSecret,
-        file: mod,
-        size: mod.length
+    const form = new FormData();
+    form.append('file', mod);
+    form.append('size', size);
+    form.append('visitSecret', visitSecret);
+    console.log(form);
+    return await axios.post(urls.gameServer.modUpload, form, {
+        headers: {
+            "Conntent-Type": "multipart/form-data"
+        }
     });
 }

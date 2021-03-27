@@ -1,4 +1,4 @@
-import discord from 'discord.js';
+import discord, { Permissions } from 'discord.js';
 import { EOL } from 'os';
 import { DiscordMessageEmitter } from '../emitters/discord.message.emitter';
 import config from '../data/config.json';
@@ -6,20 +6,18 @@ import config from '../data/config.json';
 // manages discord interactions with a guild
 export class DiscordManager {
     readonly bot: discord.Client;
+    role: discord.Role | undefined;
 
     readonly guildId: string;
     readonly guild: discord.Guild | undefined;
 
     managementChannel: discord.TextChannel | undefined;
-
+    discordEmitter: DiscordMessageEmitter;
     gameServerChannels: {
         channel: discord.TextChannel,
         webhook: discord.Webhook
     }[];
 
-    discordEmitter: DiscordMessageEmitter;
-
-    readonly managedRole = '@everyone';
 
     constructor(guildId: string, discordEmitter: DiscordMessageEmitter, bot: discord.Client) {
         this.bot = bot;
@@ -33,22 +31,19 @@ export class DiscordManager {
         const self = this;
 
         try {
+            // create factorio-player role
+            self.role = await self.createRole(config.discord.roleName, config.discord.color);
+
             // create category for our channels
             const categoryChannel = await self.createCategory(config.discord.categoryName);
 
             // get management channel
             self.managementChannel = await self.createChannel(config.discord.managementName, categoryChannel);
 
-            // create game server specific channels and associated webhook
+            // create game server specific channels, associated webhook, and voice chat for that server
             for (const server of gameServers) {
-                const newChannel = await self.createChannel(server.data.name.toLowerCase(), categoryChannel);
-                const newWebhook = await self.createWebhook(newChannel);
-                if (newChannel !== undefined && newWebhook !== undefined) {
-                    self.gameServerChannels.push({
-                        channel: newChannel,
-                        webhook: newWebhook
-                    })
-                }
+                console.log('creating')
+                await self.addNewChannel(server.data.name.toLowerCase());
             }
 
             // add event listeners
@@ -84,6 +79,7 @@ export class DiscordManager {
 
     async remove() {
         const self = this;
+        // this is unused since it was created for kick events... but if we're kicked we cannot do anything to that server
         self.removeListeners();
         for (const chan of self.gameServerChannels) {
             await self.removeChannel(chan.channel);
@@ -119,18 +115,18 @@ export class DiscordManager {
         channelInfo?.webhook.send(msg, { username: username });
     }
 
-    isManagementChannel(message: discord.Message) : boolean {
+    isManagementChannel(message: discord.Message): boolean {
         const self = this;
         return message.channel.id === self.managementChannel?.id
     }
 
-    isGameServerChannel(message: discord.Message) : boolean {
+    isGameServerChannel(message: discord.Message): boolean {
         const self = this;
         const gsc = self.gameServerChannels.find(chan => chan.channel.id === message.channel.id)
         return gsc !== undefined;
     }
 
-    getChannelName(message: discord.Message) : string | undefined {
+    getChannelName(message: discord.Message): string | undefined {
         const self = this;
         const gsc = self.gameServerChannels.find(chan => chan.channel.id === message.channel.id)
         return gsc?.channel.name;
@@ -185,6 +181,23 @@ export class DiscordManager {
         }
     }
 
+    private async createRole(roleName: string, roleColor: string) {
+        const self = this;
+
+        const roles = self.guild?.roles.cache.find(r => r.name === roleName);
+        if (roles !== undefined) {
+            return roles; // role exists
+        }
+
+        return await self.guild?.roles.create({
+            data: {
+                name: roleName,
+                color: roleColor
+            },
+            reason: 'Factorio players can see server channels'
+        });
+    }
+
     // creates facotrio server category if it does not exist
     private async createCategory(categoryName: string): Promise<discord.CategoryChannel | undefined> {
         const self = this;
@@ -199,25 +212,10 @@ export class DiscordManager {
                     return exists as discord.CategoryChannel;
                 }
 
-                // create the channel but remove management controsl for @everyone
-                const everyoneRole = self.guild.roles.cache.find(r => r.name === self.managedRole);
-                if (everyoneRole !== undefined) {
-                    return await self.guild.channels.create(categoryName, {
-                        type: 'category',
-                        permissionOverwrites: [
-                            {
-                                id: everyoneRole,
-                                deny: ['MANAGE_CHANNELS', 'MANAGE_ROLES', 'MANAGE_WEBHOOKS']
-                            }
-                        ]
-                    });
-                }
-                // @everyone doesnt exist, create channel as is
-                else {
-                    return await self.guild.channels.create(categoryName, {
-                        type: 'category'
-                    });
-                }
+                // create the category channnel
+                return await self.guild.channels.create(categoryName, {
+                    type: 'category',
+                });
             }
             // we couldn't find the guild...thats weird
             console.error('We couldnt find the guild we are in...');
@@ -258,6 +256,7 @@ export class DiscordManager {
     // adds channels to factorio server catefory if it does not exist
     private async createChannel(channelName: string, categoryChannel: discord.CategoryChannel | undefined): Promise<discord.TextChannel | undefined> {
         const self = this;
+
         try {
             // if guild exists...which it should
             if (self.guild !== undefined) {
@@ -273,12 +272,34 @@ export class DiscordManager {
 
                     // check if channels already exist
                     const channel = category.children.find(c => c.name === channelName);
-                    if (channel === undefined) {
-                        const sm = await self.guild.channels.create(channelName);
+                    if (channel !== undefined) {
+                        return channel as discord.TextChannel;
+                    }
+
+                    // create channel with permissions if it is not the management channel
+                    if (channelName !== config.discord.managementName) {
+                        const sm = await self.guild.channels.create(channelName, {
+                            type: 'text',
+                        });
+                        await sm.setParent(category);
+
+                        // do not allow everyone to see this channel
+                        await sm.updateOverwrite(self.guild.roles.everyone, { VIEW_CHANNEL: false});
+
+                        // allow role to see channel
+                        if (self.role !== undefined) {
+                            await sm.updateOverwrite(self.role, { VIEW_CHANNEL: true})
+                        }
+
+                        return sm;
+                    }
+                    else {
+                        const sm = await self.guild.channels.create(channelName, {
+                            type: 'text'
+                        });
                         sm.setParent(category);
                         return sm;
                     }
-                    return channel as discord.TextChannel;
                 }
 
                 // couldnt find category channel we needed
