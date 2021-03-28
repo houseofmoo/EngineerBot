@@ -44,7 +44,7 @@ export class DiscordManager {
 
             // get management channel
             if (self.categoryChannel !== undefined) {
-                self.managementChannel = await self.createManagementChannel(self.categoryChannel);
+                self.managementChannel = await self.createManagementChannel(config.discord.managementName, self.categoryChannel);
             }
 
             // create game server specific channels and voice chat for that server
@@ -164,7 +164,7 @@ export class DiscordManager {
     // creates facotrio server category if it does not exist
     private async createCategory(categoryName: string): Promise<discord.CategoryChannel | undefined> {
         const self = this;
-        console.log('creating category');
+
         try {
             // if guild exists...which it should since we're in it
             if (self.guild !== undefined) {
@@ -176,16 +176,18 @@ export class DiscordManager {
                 }
 
                 // create the category channnel
-                const cataChannel = await self.guild.channels.create(categoryName, {
+                const category = await self.guild.channels.create(categoryName, {
                     type: 'category'
                 });
 
                 // do not allow everyone to see this channel
                 const botRole = self.guild.roles.cache.find(r => r.name === self.bot?.user?.username);
                 if (botRole !== undefined) {
-                    await cataChannel.updateOverwrite(botRole, { VIEW_CHANNEL: true });
-                    await cataChannel.updateOverwrite(botRole, { MANAGE_CHANNELS: true });
+                    await category.updateOverwrite(botRole, { VIEW_CHANNEL: true });
+                    await category.updateOverwrite(botRole, { MANAGE_CHANNELS: true });
                 }
+
+                return category;
             }
             // we couldn't find the guild...thats weird
             console.error('We couldnt find the guild we are in...');
@@ -195,42 +197,6 @@ export class DiscordManager {
             console.error('Errored out while creating category');
             console.error(error);
             return undefined;
-        }
-    }
-
-    // deletes factorio server category
-    private async deleteCategory(categoryName: string) {
-        const self = this;
-
-        try {
-            // if guild exists...which it should since we're in it
-            if (self.guild !== undefined) {
-
-                // find category channel and delete it
-                const exists = self.guild.channels.cache.find(category => category.name === categoryName);
-                if (exists !== undefined) {
-                    await exists.delete()
-                }
-            }
-            // we couldn't find the guild...thats weird
-            console.error('We couldnt find the guild we are in...');
-            return undefined;
-        }
-        catch (error) {
-            console.error('Errored out while creating category');
-            console.error(error);
-            return undefined;
-        }
-    }
-
-    private async deleteChannel(channel: discord.Channel) {
-        const self = this;
-        try {
-            // delete channel from discord
-            await channel.delete();
-        }
-        catch (error) {
-            console.error(error);
         }
     }
 
@@ -270,36 +236,31 @@ export class DiscordManager {
         }
     }
 
-    getChannel(channelName: string) {
+    private async createManagementChannel(managementName: string, categoryChannel: discord.CategoryChannel) {
         const self = this;
-        return self.gameServerChannels.find(gsc => gsc.channel.name.toLowerCase() === channelName.toLowerCase());
-    }
-
-    private async createManagementChannel(categoryChannel: discord.CategoryChannel) {
-        const self = this;
-        const channelName = config.discord.managementName;
 
         try {
             // if guild exists...which it should
             if (self.guild !== undefined) {
 
                 // check if management channel already exists
-                const channel = categoryChannel.children.find(c => c.name === channelName);
+                const channel = categoryChannel.children.find(c => c.name === managementName);
                 if (channel !== undefined) {
                     return channel as discord.TextChannel;
                 }
 
                 // create management channel, everyone can see it
-                const managementChannel = await self.guild.channels.create(channelName, {
+                const managementChannel = await self.guild.channels.create(managementName, {
                     type: 'text'
                 });
-                managementChannel.setParent(categoryChannel);
-                managementChannel.updateOverwrite(self.guild.roles.everyone, { VIEW_CHANNEL: true });
+                
+                await managementChannel.setParent(categoryChannel);
+                await managementChannel.updateOverwrite(self.guild.roles.everyone, { VIEW_CHANNEL: true });
                 return managementChannel;
-
             }
 
             // not a memeber of any guilds
+            console.log('guild undefined');
             return undefined;
         }
         catch (error) {
@@ -398,6 +359,47 @@ export class DiscordManager {
             await self.deleteChannel(channel.channel);
             await self.deleteChannel(channel.voice);
             self.gameServerChannels.splice(index, 1);
+        }
+    }
+
+    getChannel(channelName: string) {
+        const self = this;
+        return self.gameServerChannels.find(gsc => gsc.channel.name.toLowerCase() === channelName.toLowerCase());
+    }
+
+    // deletes factorio server category
+    private async deleteCategory(categoryName: string) {
+        const self = this;
+
+        try {
+            // if guild exists...which it should since we're in it
+            if (self.guild !== undefined) {
+
+                // find category channel and delete it
+                const exists = self.guild.channels.cache.find(category => category.name === categoryName);
+                if (exists !== undefined) {
+                    await exists.delete()
+                }
+            }
+            // we couldn't find the guild...thats weird
+            console.error('We couldnt find the guild we are in...');
+            return undefined;
+        }
+        catch (error) {
+            console.error('Errored out while creating category');
+            console.error(error);
+            return undefined;
+        }
+    }
+
+    private async deleteChannel(channel: discord.Channel) {
+        const self = this;
+        try {
+            // delete channel from discord
+            await channel.delete();
+        }
+        catch (error) {
+            console.error(error);
         }
     }
 }
