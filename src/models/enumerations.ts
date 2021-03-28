@@ -40,3 +40,8 @@ export enum ServerState {
     Online = "online",
     Stopping = "stoppinng"
 }
+
+export enum SocketStatus {
+    Connected,
+    Disconnected
+}

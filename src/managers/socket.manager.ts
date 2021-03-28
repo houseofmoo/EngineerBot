@@ -1,6 +1,6 @@
 import websocket from 'websocket';
 import { SocketEventEmitter } from '../emitters/socket.event.emitter';
-import { ServerState, ServerEvent } from '../models/enumerations';
+import { ServerState, ServerEvent, SocketStatus } from '../models/enumerations';
 import urls from '../data/api.urls.json';
 
 export class SocketManager {
@@ -17,24 +17,28 @@ export class SocketManager {
         this.serverName = serverName;
         this.serverToken = serverToken;
         this.socketEmitter = new SocketEventEmitter();
-        this.socket = new websocket.client();
         this.connection = undefined;
         this.previousLog = '';
         this.killSocket = false;
+
+        this.connect = this.connect.bind(this);
+        this.endConnection = this.endConnection.bind(this);
+
+        this.socket = new websocket.client();
         this.init();
     }
 
     connect(): void {
         const self = this;
         console.log(`${self.serverName} connecting to ${urls.gameServer.websocket}`);
-        this.socket?.connect(urls.gameServer.websocket);
+        self.socket?.connect(urls.gameServer.websocket);
     }
 
     endConnection(): void {
         const self = this;
         self.killSocket = true;
-        console.log(`${self.serverName} connection ended with server removal`);
         self.connection?.close();
+        console.log(`${self.serverName} connection ended with server removal`);
     }
 
     init(): void {
@@ -42,7 +46,7 @@ export class SocketManager {
 
         self.socket.on('connectFailed', error => {
             const failedMsg = `Failed to connect to server`;
-            self.socketEmitter.emit('socketStatus', failedMsg, error);
+            self.socketEmitter.emit('socketStatus', failedMsg, SocketStatus.Disconnected, error);
             if (!self.killSocket) {
                 setTimeout(self.connect, 10000);
             }
@@ -51,18 +55,18 @@ export class SocketManager {
         self.socket.on('connect', connection => {
             self.connection = connection;
             const connectedMsg = `Server connection established`;
-            self.socketEmitter.emit('socketStatus', connectedMsg, undefined);
+            self.socketEmitter.emit('socketStatus', connectedMsg, SocketStatus.Connected, undefined);
 
             connection.on('error', error => {
                 self.connection = undefined;
                 const errMsg = `Server connection error`
-                self.socketEmitter.emit('socketStatus', errMsg, error);
+                self.socketEmitter.emit('socketStatus', errMsg, SocketStatus.Disconnected, error);
             })
 
             connection.on('close', () => {
                 self.connection = undefined;
                 const closeMsg = 'Reconnecting to server'
-                self.socketEmitter.emit('socketStatus', closeMsg, undefined);
+                self.socketEmitter.emit('socketStatus', closeMsg, SocketStatus.Disconnected, undefined);
                 if (!self.killSocket) {
                     setTimeout(self.connect, 10000);
                 }

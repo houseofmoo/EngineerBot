@@ -8,7 +8,7 @@ import { getServer, updateServer, removeServer } from '../database/server.db';
 import { getGameMods, getGameMod, addGameMod, removeAllMods, updateGameMod } from '../database/mods.db';
 import { addSaves, getSaves, removeSaves, updateSaves } from '../database/saves.db';
 import { Server } from '../models/data.types';
-import { ServerState, ServerEvent, ServerCommandId } from '../models/enumerations'
+import { ServerState, ServerEvent, ServerCommandId, SocketStatus } from '../models/enumerations'
 import { ServerCommands } from '../commands/server.commands';
 import config from '../data/config.json'
 
@@ -16,14 +16,15 @@ export class ServerManager {
     readonly guildId: string;
     readonly serverName: string;
     readonly serverToken: string;
+    readonly validSlots: string[];
 
     visitSecret: string;
     launchId: string;
     serverState: ServerState;
+    socketStatus: SocketStatus;
+
     serverIp: string;
-    previousLog: string; // we need this cause the game server likes to send duplicate logs...
     gameVersion: string;
-    readonly validSlots: string[];
 
     modHandler: ModHandler;
     socketHandler: SocketManager;
@@ -36,14 +37,15 @@ export class ServerManager {
         this.guildId = guildId;
         this.serverName = serverName;
         this.serverToken = serverToken;
+        this.validSlots = ["slot1", "slot2", "slot3", "slot4", "slot5", "slot6", "slot7", "slot8", "slot9"];
 
         this.visitSecret = '';
         this.launchId = '';
         this.serverState = ServerState.Offline;
+        this.socketStatus = SocketStatus.Disconnected;
+
         this.serverIp = '';
-        this.previousLog = '';
         this.gameVersion = '';
-        this.validSlots = ["slot1", "slot2", "slot3", "slot4", "slot5", "slot6", "slot7", "slot8", "slot9"];
 
         this.modHandler = new ModHandler();
         this.socketHandler = new SocketManager(this.serverName, this.serverToken);
@@ -61,19 +63,19 @@ export class ServerManager {
 
         self.captureSocketStatus = self.captureSocketStatus.bind(self);
         self.socketHandler.socketEmitter.addListener('socketStatus', self.captureSocketStatus);
-        
+
         self.captureSecret = self.captureSecret.bind(self);
         self.socketHandler.socketEmitter.addListener('receivedSecret', self.captureSecret);
-        
+
         self.captureSaves = self.captureSaves.bind(self);
         self.socketHandler.socketEmitter.addListener('receivedSaves', self.captureSaves);
 
         self.captureVersions = self.captureVersions.bind(self);
         self.socketHandler.socketEmitter.addListener('receivedVersions', self.captureVersions);
-        
+
         self.captureRegions = self.captureRegions.bind(self);
         self.socketHandler.socketEmitter.addListener('receivedRegions', self.captureRegions);
-        
+
         self.captureMods = self.captureMods.bind(self);
         self.socketHandler.socketEmitter.addListener('receivedMods', self.captureMods);
 
@@ -132,7 +134,7 @@ export class ServerManager {
         self.serverCommands.addServerAction(ServerCommandId.status, self.info);
         self.serverCommands.addServerAction(ServerCommandId.info, self.info);
 
-        
+
         self.listCheats = self.listCheats.bind(self);
         self.serverCommands.addServerAction(ServerCommandId.cheats, self.listCheats);
     }
@@ -430,9 +432,8 @@ export class ServerManager {
         }
 
         // confirm connected to socket
-        if (self.visitSecret === '') {
-            self.discordEmitter.emit('sendGameServerMsg', self.serverName, 'Disconnected from game servers, reconnecting. Attempt server start after a few seconds');
-            this.socketHandler.connect();
+        if (self.socketStatus === SocketStatus.Disconnected) {
+            self.discordEmitter.emit('sendGameServerMsg', self.serverName, 'Attempting to re-establish connection with server, cannot perform server commands');
             return;
         }
 
@@ -475,6 +476,13 @@ export class ServerManager {
 
     async serverStop(commandId: string, args: string[], message: discord.Message) {
         const self = this;
+
+        // confirm connected to socket
+        if (self.socketStatus === SocketStatus.Disconnected) {
+            self.discordEmitter.emit('sendGameServerMsg', self.serverName, 'Attempting to re-establish connection with server, cannot perform server commands');
+            return;
+        }
+
         switch (self.serverState) {
             case ServerState.Online:
                 await stopServer(self.visitSecret, self.launchId);
@@ -496,6 +504,13 @@ export class ServerManager {
 
     async sendMessage(commandId: string, args: string[], message: discord.Message) {
         const self = this;
+
+        // confirm connected to socket
+        if (self.socketStatus === SocketStatus.Disconnected) {
+            self.discordEmitter.emit('sendGameServerMsg', self.serverName, 'Attempting to re-establish connection with server, cannot perform server commands');
+            return;
+        }
+
         switch (self.serverState) {
             case ServerState.Online:
                 chat(self.visitSecret, self.launchId, message.author.username, args.join(' '));
@@ -518,6 +533,12 @@ export class ServerManager {
     async promote(commandId: string, args: string[], message: discord.Message) {
         const self = this;
         const username = args[0];
+
+        // confirm connected to socket
+        if (self.socketStatus === SocketStatus.Disconnected) {
+            self.discordEmitter.emit('sendGameServerMsg', self.serverName, 'Attempting to re-establish connection with server, cannot perform server commands');
+            return;
+        }
 
         switch (self.serverState) {
             case ServerState.Online:
@@ -609,19 +630,27 @@ export class ServerManager {
         cheatsEmbed.setTitle(`Cheats`);
 
 
-        const killBitersCommand =  `/c local surface=game.player.surface
+        const killBitersCommand = `/c local surface=game.player.surface
     for key, entity in pairs(surface.find_entities_filtered({force="enemy"})) do
         entity.destroy()
     end`
-    cheatsEmbed.addField('Kill Biters', killBitersCommand);
+        cheatsEmbed.addField('Kill Biters', killBitersCommand);
 
         this.discordEmitter.emit('sendGameServerMsg', self.serverName, cheatsEmbed);
     }
 
-    captureSocketStatus(msg: string, err: Error | undefined) {
+    captureSocketStatus(msg: string, status: SocketStatus, err: Error | undefined) {
         const self = this;
         self.discordEmitter.emit('sendGameServerMsg', self.serverName, msg);
+        self.socketStatus = status;
 
+        // if the socket is disconnected reset visit secret and launch id
+        if (self.socketStatus === SocketStatus.Disconnected) {
+            self.visitSecret = '';
+            self.launchId = '';
+        }
+
+        // print error 
         if (err !== undefined) {
             console.log(`${self.serverName} websocket error: ${err}`);
         }
