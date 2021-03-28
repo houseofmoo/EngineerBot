@@ -228,7 +228,7 @@ export class GuildManager {
         self.gameServerManagers.push(gsm);
 
         // create discord channel
-        await self.discordManager.addNewChannel(gsm.serverName.toLowerCase());
+        await self.discordManager.addServerChannels(gsm.serverName.toLowerCase());
 
         // send results to management channel
         self.discordEmitter.emit('sendManagementMsg', `${serverName} using ${token} is now being managed`);

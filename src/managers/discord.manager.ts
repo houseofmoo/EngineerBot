@@ -2,7 +2,6 @@ import discord from 'discord.js';
 import { DiscordMessageEmitter } from '../emitters/discord.message.emitter';
 import config from '../data/config.json';
 import roleNames from '../data/roles.json';
-import { removeListener } from 'node:process';
 
 // manages discord interactions with a guild
 export class DiscordManager {
@@ -44,11 +43,13 @@ export class DiscordManager {
             self.categoryChannel = await self.createCategory(config.discord.categoryName);
 
             // get management channel
-            self.managementChannel = await self.createTextChannel(config.discord.managementName, self.categoryChannel);
+            if (self.categoryChannel !== undefined) {
+                self.managementChannel = await self.createManagementChannel(self.categoryChannel);
+            }
 
             // create game server specific channels and voice chat for that server
             for (const server of gameServers) {
-                await self.addNewChannel(server.data.name.toLowerCase());
+                await self.addServerChannels(server.data.name.toLowerCase());
             }
 
             // add event listeners
@@ -113,7 +114,6 @@ export class DiscordManager {
         return gsc?.channel.name;
     }
 
-
     private async createRole(roleNames: string[]) {
         const self = this;
 
@@ -145,10 +145,10 @@ export class DiscordManager {
             if (id === undefined) {
                 return;
             }
-    
+
             // get member
             const member = await self.guild?.members.cache.find(m => m.id === id);
-    
+
             // give them role
             if (member !== undefined && self.nerdRole !== undefined) {
                 await member?.roles.add(self.nerdRole);
@@ -160,7 +160,6 @@ export class DiscordManager {
             console.log('error assiging role');
         }
     }
-
 
     // creates facotrio server category if it does not exist
     private async createCategory(categoryName: string): Promise<discord.CategoryChannel | undefined> {
@@ -235,7 +234,7 @@ export class DiscordManager {
         }
     }
 
-    async addNewChannel(channelName: string) {
+    async addServerChannels(channelName: string) {
         const self = this;
 
         try {
@@ -245,18 +244,29 @@ export class DiscordManager {
             }
 
             // create game server specific channels and associated webhook
-            const newChannel = await self.createTextChannel(channelName, self.categoryChannel);
-            const voiceChannel = await self.createVoiceChannel(channelName, self.categoryChannel);
+            if (self.categoryChannel !== undefined) {
+                const textChannel = await self.createDiscordChannel(channelName, self.categoryChannel, "text");
+                const voiceChannel = await self.createDiscordChannel(channelName, self.categoryChannel, "voice");
 
-            if (newChannel !== undefined && voiceChannel !== undefined) {
-                self.gameServerChannels.push({
-                    channel: newChannel,
-                    voice: voiceChannel
-                });
+                if (textChannel !== undefined && voiceChannel !== undefined) {
+                    self.gameServerChannels.push({
+                        channel: textChannel as discord.TextChannel,
+                        voice: voiceChannel as discord.VoiceChannel
+                    });
+                }
+                else {
+                    // TODO: how do we handle not creating the channels
+                    console.log('text/voice channel creation failure');
+                }
+            }
+            else {
+                // TODO: how do we handle not having a category?
+                console.log('category was undefined when attempting to create text/voice channels');
             }
         }
         catch (error) {
             console.error(error);
+            console.log('error while attempting to create text/voice channels');
         }
     }
 
@@ -265,62 +275,28 @@ export class DiscordManager {
         return self.gameServerChannels.find(gsc => gsc.channel.name.toLowerCase() === channelName.toLowerCase());
     }
 
-    // adds channels to factorio server catefory if it does not exist
-    private async createTextChannel(channelName: string, categoryChannel: discord.CategoryChannel | undefined) {
+    private async createManagementChannel(categoryChannel: discord.CategoryChannel) {
         const self = this;
+        const channelName = config.discord.managementName;
+
         try {
             // if guild exists...which it should
             if (self.guild !== undefined) {
 
-                // find the category we want, which should exist since we created it
-                if (categoryChannel === undefined) {
-                    categoryChannel = self.guild.channels.cache.find(category => category.name === config.discord.categoryName) as discord.CategoryChannel;
+                // check if management channel already exists
+                const channel = categoryChannel.children.find(c => c.name === channelName);
+                if (channel !== undefined) {
+                    return channel as discord.TextChannel;
                 }
 
-                // create new channel under category channel if channel doesnt exist
-                if (categoryChannel !== undefined && categoryChannel.type === 'category') {
-                    const category = categoryChannel as discord.CategoryChannel;
+                // create management channel, everyone can see it
+                const managementChannel = await self.guild.channels.create(channelName, {
+                    type: 'text'
+                });
+                managementChannel.setParent(categoryChannel);
+                managementChannel.updateOverwrite(self.guild.roles.everyone, { VIEW_CHANNEL: true });
+                return managementChannel;
 
-                    // check if channels already exist
-                    const channel = category.children.find(c => c.name === channelName);
-                    if (channel !== undefined) {
-                        return channel as discord.TextChannel;
-                    }
-
-                    // create channel with permissions if it is not the management channel
-                    if (channelName !== config.discord.managementName) {
-                        const sm = await self.guild.channels.create(channelName, {
-                            type: 'text',
-                        });
-                        await sm.setParent(category);
-
-                        // do not allow everyone to see this channel
-                        await sm.updateOverwrite(self.guild.roles.everyone, { VIEW_CHANNEL: false });
-
-                        // allow role to see channel
-                        if (self.nerdRole !== undefined) {
-                            await sm.updateOverwrite(self.nerdRole, { VIEW_CHANNEL: true });
-                        }
-
-                        const botRole = self.guild.roles.cache.find(r => r.name === self.bot?.user?.username);
-                        if (botRole !== undefined) {
-                            await sm.updateOverwrite(botRole, { VIEW_CHANNEL: true });
-                            await sm.updateOverwrite(botRole, { MANAGE_CHANNELS: true });
-                        }
-
-                        return sm;
-                    }
-                    else {
-                        const sm = await self.guild.channels.create(channelName, {
-                            type: 'text'
-                        });
-                        sm.setParent(category);
-                        return sm;
-                    }
-                }
-
-                // couldnt find category channel we needed
-                return undefined;
             }
 
             // not a memeber of any guilds
@@ -332,49 +308,55 @@ export class DiscordManager {
         }
     }
 
-    private async createVoiceChannel(channelName: string, categoryChannel: discord.CategoryChannel | undefined) {
+    private async createDiscordChannel(channelName: string, categoryChannel: discord.CategoryChannel, channelType: "text" | "voice") {
         const self = this;
-        channelName = channelName + ' yelling place';
+        // if we're creating a voice channel
+        if (channelType === "voice") {
+            channelName = channelName + ' yelling place';
+        }
+
         try {
             // if guild exists...which it should
             if (self.guild !== undefined) {
 
-                // find the category we want, which should exist since we created it
-                if (categoryChannel === undefined) {
-                    categoryChannel = self.guild.channels.cache.find(category => category.name === config.discord.categoryName) as discord.CategoryChannel;
-                }
-
-                // create new channel under category channel if channel doesnt exist
-                if (categoryChannel !== undefined && categoryChannel.type === 'category') {
-                    const category = categoryChannel as discord.CategoryChannel;
-
-                    // check if channels already exist
-                    const channel = category.children.find(c => c.name === channelName);
-                    if (channel !== undefined) {
-                        return channel as discord.VoiceChannel;
+                // check if channels already exist
+                const channel = categoryChannel.children.find(c => c.name === channelName);
+                if (channel !== undefined) {
+                    /// update channel permissions to include viewable by nerd role
+                    if (self.nerdRole !== undefined) {
+                        channel.updateOverwrite(self.nerdRole, { VIEW_CHANNEL: true });
                     }
 
-                    // create channel with permissions if it is not the management channel
-                    if (channelName !== config.discord.managementName) {
-                        const sm = await self.guild.channels.create(channelName, {
-                            type: 'voice',
-                        });
-                        await sm.setParent(category);
-
-                        // do not allow everyone to see this channel
-                        await sm.updateOverwrite(self.guild.roles.everyone, { VIEW_CHANNEL: false });
-
-                        // allow role to see channel
-                        if (self.nerdRole !== undefined) {
-                            await sm.updateOverwrite(self.nerdRole, { VIEW_CHANNEL: true })
-                        }
-
-                        return sm;
-                    }
+                    return channel;
                 }
-                // couldnt find category channel we needed
-                return undefined;
+
+                // create channel
+                const newChannel = await self.guild.channels.create(channelName, {
+                    type: channelType,
+                });
+
+                // make channel child of category
+                await newChannel.setParent(categoryChannel);
+
+                // make sure bot can manage new channel
+                const botRole = self.guild.roles.cache.find(r => r.name === self.bot?.user?.username);
+                if (botRole !== undefined) {
+                    await newChannel.updateOverwrite(botRole, { VIEW_CHANNEL: true });
+                    await newChannel.updateOverwrite(botRole, { MANAGE_CHANNELS: true });
+                }
+
+
+                // @everyone cannot see this channel
+                await newChannel.updateOverwrite(self.guild.roles.everyone, { VIEW_CHANNEL: false });
+
+                // allow nerd role to see channel
+                if (self.nerdRole !== undefined) {
+                    await newChannel.updateOverwrite(self.nerdRole, { VIEW_CHANNEL: true })
+                }
+
+                return newChannel;
             }
+
             // not a memeber of any guilds
             return undefined;
         }
