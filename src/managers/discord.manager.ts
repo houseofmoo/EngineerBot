@@ -10,8 +10,9 @@ export class DiscordManager {
     nerdRole: discord.Role | undefined;
 
     readonly guildId: string;
-    readonly guild: discord.Guild | undefined;
+    guild: discord.Guild | undefined;
 
+    categoryChannel: discord.CategoryChannel | undefined;
     managementChannel: discord.TextChannel | undefined;
     discordEmitter: DiscordMessageEmitter;
     gameServerChannels: {
@@ -32,15 +33,18 @@ export class DiscordManager {
         const self = this;
 
         try {
+            // make sure guild is set
+            self.guild = self.bot.guilds.cache.find(g => g.id === self.guildId);
+
             // create factorio-player role
             self.nerdRole = await self.createRole(roleNames.names);
             await self.assignNerdRole(self.bot?.user?.id);
 
             // create category for our channels
-            const categoryChannel = await self.createCategory(config.discord.categoryName);
+            self.categoryChannel = await self.createCategory(config.discord.categoryName);
 
             // get management channel
-            self.managementChannel = await self.createTextChannel(config.discord.managementName, categoryChannel);
+            self.managementChannel = await self.createTextChannel(config.discord.managementName, self.categoryChannel);
 
             // create game server specific channels and voice chat for that server
             for (const server of gameServers) {
@@ -137,16 +141,23 @@ export class DiscordManager {
     async assignNerdRole(id: string | undefined) {
         const self = this;
 
-        if (id === undefined) {
-            return;
+        try {
+            if (id === undefined) {
+                return;
+            }
+    
+            // get member
+            const member = await self.guild?.members.cache.find(m => m.id === id);
+    
+            // give them role
+            if (member !== undefined && self.nerdRole !== undefined) {
+                await member?.roles.add(self.nerdRole);
+            }
+
         }
-
-        // get member
-        const member = await self.guild?.members.cache.find(m => m.id === id);
-
-        // give them role
-        if (member !== undefined && self.nerdRole !== undefined) {
-            await member?.roles.add(self.nerdRole);
+        catch (err) {
+            console.log(err);
+            console.log('error assiging role');
         }
     }
 
@@ -154,7 +165,7 @@ export class DiscordManager {
     // creates facotrio server category if it does not exist
     private async createCategory(categoryName: string): Promise<discord.CategoryChannel | undefined> {
         const self = this;
-        
+        console.log('creating category');
         try {
             // if guild exists...which it should since we're in it
             if (self.guild !== undefined) {
@@ -229,17 +240,19 @@ export class DiscordManager {
 
         try {
             // create or get category for our channels
-            const categoryChannel = await self.createCategory(config.discord.categoryName);
+            if (self.categoryChannel === undefined) {
+                self.categoryChannel = await self.createCategory(config.discord.categoryName);
+            }
 
             // create game server specific channels and associated webhook
-            const newChannel = await self.createTextChannel(channelName, categoryChannel);
-            const voiceChannel = await self.createVoiceChannel(channelName, categoryChannel);
+            const newChannel = await self.createTextChannel(channelName, self.categoryChannel);
+            const voiceChannel = await self.createVoiceChannel(channelName, self.categoryChannel);
 
             if (newChannel !== undefined && voiceChannel !== undefined) {
                 self.gameServerChannels.push({
                     channel: newChannel,
                     voice: voiceChannel
-                })
+                });
             }
         }
         catch (error) {
