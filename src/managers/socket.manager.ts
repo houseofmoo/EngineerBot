@@ -48,7 +48,7 @@ export class SocketManager {
             const failedMsg = `Failed to connect to server`;
             self.socketEmitter.emit('socketStatus', failedMsg, SocketStatus.Disconnected, error);
             if (!self.killSocket) {
-                setTimeout(self.connect, 10000);
+                setTimeout(self.connect, 3000);
             }
         })
 
@@ -58,9 +58,10 @@ export class SocketManager {
             self.socketEmitter.emit('socketStatus', connectedMsg, SocketStatus.Connected, undefined);
 
             connection.on('error', error => {
-                self.connection = undefined;
                 const errMsg = `Server connection error`
                 self.socketEmitter.emit('socketStatus', errMsg, SocketStatus.Disconnected, error);
+                self.connection?.close();
+                self.connection = undefined;
             })
 
             connection.on('close', () => {
@@ -68,13 +69,13 @@ export class SocketManager {
                 const closeMsg = 'Reconnecting to server'
                 self.socketEmitter.emit('socketStatus', closeMsg, SocketStatus.Disconnected, undefined);
                 if (!self.killSocket) {
-                    setTimeout(self.connect, 10000);
+                    setTimeout(self.connect, 3000);
                 }
             })
 
             connection.on('message', message => {
                 self.routeMessage(message);
-
+                
                 // heart beat
                 function keepAlive() {
                     connection.sendUTF('keep alive');
