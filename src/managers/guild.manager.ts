@@ -34,7 +34,7 @@ export class GuildManager {
 
         // get serverList
         const serverList: any = await getServers(self.guildId);
-
+        
         // if no servers just init discord manager
         if (serverList === undefined) {
             await self.discordManager.initDiscordManager([]);
@@ -298,7 +298,7 @@ export class GuildManager {
 
         const channel = self.discordManager.getChannel(serverName);
         if (channel !== undefined) {
-            self.discordManager.remove(channel);
+            self.discordManager.removeChannel(channel);
         }
         self.discordEmitter.emit('sendManagementMsg', `${serverName} using ${token} removed from server list`);
     }
@@ -326,7 +326,7 @@ export class GuildManager {
 
     async newPlayer(commandId: string, args: string[], message: discord.Message) {
         const self = this;
-        self.discordManager.addRoleToUser(message);
+        self.discordManager.assignNerdRole(message.author.id);
         this.discordEmitter.emit('sendManagementMsg', 'You have been deemed worthy');
     }
 }

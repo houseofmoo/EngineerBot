@@ -1,7 +1,8 @@
-import discord, { Permissions } from 'discord.js';
-import { EOL } from 'os';
+import discord from 'discord.js';
 import { DiscordMessageEmitter } from '../emitters/discord.message.emitter';
 import config from '../data/config.json';
+import roleNames from '../data/roles.json';
+import { removeListener } from 'node:process';
 
 // manages discord interactions with a guild
 export class DiscordManager {
@@ -15,7 +16,6 @@ export class DiscordManager {
     discordEmitter: DiscordMessageEmitter;
     gameServerChannels: {
         channel: discord.TextChannel,
-        //webhook: discord.Webhook,
         voice: discord.VoiceChannel
     }[];
 
@@ -33,15 +33,16 @@ export class DiscordManager {
 
         try {
             // create factorio-player role
-            self.nerdRole = await self.createRole(config.discord.roleName, config.discord.color);
+            self.nerdRole = await self.createRole(roleNames.names);
+            await self.assignNerdRole(self.bot?.user?.id);
 
             // create category for our channels
             const categoryChannel = await self.createCategory(config.discord.categoryName);
 
             // get management channel
-            self.managementChannel = await self.createChannel(config.discord.managementName, categoryChannel);
+            self.managementChannel = await self.createTextChannel(config.discord.managementName, categoryChannel);
 
-            // create game server specific channels, associated webhook, and voice chat for that server
+            // create game server specific channels and voice chat for that server
             for (const server of gameServers) {
                 await self.addNewChannel(server.data.name.toLowerCase());
             }
@@ -63,9 +64,6 @@ export class DiscordManager {
         self.sendToChannel = self.sendToChannel.bind(self);
         self.discordEmitter.addListener('sendGameServerMsg', self.sendToChannel);
 
-        self.sendToChannelViaWebhook = self.sendToChannelViaWebhook.bind(self);
-        self.discordEmitter.addListener('sendToGameServerWebHook', self.sendToChannelViaWebhook);
-
         self.sendAndPinToChannel = self.sendAndPinToChannel.bind(self);
         self.discordEmitter.addListener('pinGameServerMsg', self.sendAndPinToChannel);
     }
@@ -74,44 +72,7 @@ export class DiscordManager {
         const self = this;
         self.discordEmitter.removeAllListeners('sendManagementMsg');
         self.discordEmitter.removeAllListeners('sendGameServerMsg');
-        self.discordEmitter.removeAllListeners('sendToGameServerWebHook');
-    }
-
-    async removeAll() {
-        const self = this;
-        // this is unused since it was created for kick events... but if we're kicked we cannot do anything to that server
-        self.removeListeners();
-        for (const chan of self.gameServerChannels) {
-            await self.removeChannel(chan.channel);
-            await self.removeChannel(chan.voice);
-        }
-
-        // reset array
-        self.gameServerChannels = [];
-
-        if (self.managementChannel !== undefined) {
-            await self.removeChannel(self.managementChannel);
-        }
-
-        await self.deleteCategory(config.discord.categoryName);
-    }
-
-    async remove(channel: {
-        channel: discord.TextChannel,
-        //webhook: discord.Webhook,
-        voice: discord.VoiceChannel
-    }) {
-        const self = this;
-
-        // look for index of items
-        const channels = self.gameServerChannels.find(gsc => gsc.channel.id === channel.channel.id);
-        if (channels !== undefined) {
-            const index = self.gameServerChannels.indexOf(channels);
-            await self.removeChannel(channel.channel);
-            await self.removeChannel(channel.voice);
-            // TODO: remove webhook
-            self.gameServerChannels.splice(index, 1);
-        }
+        self.discordEmitter.removeAllListeners('pinGameServerMsg');
     }
 
     sendToManagementChannel(msg: string | discord.MessageEmbed): void {
@@ -131,12 +92,6 @@ export class DiscordManager {
         channelInfo?.channel.send(msg).then((msg) => msg.pin());
     }
 
-    sendToChannelViaWebhook(serverName: string, msg: string | discord.MessageEmbed, username: string): void {
-        // const self = this;
-        // const channelInfo = self.gameServerChannels.find(chan => chan.channel.name.toLowerCase() === serverName.toLowerCase());
-        // channelInfo?.webhook.send(msg, { username: username });
-    }
-
     isManagementChannel(message: discord.Message): boolean {
         const self = this;
         return message.channel.id === self.managementChannel?.id
@@ -154,11 +109,40 @@ export class DiscordManager {
         return gsc?.channel.name;
     }
 
-    async addRoleToUser(message: discord.Message) {
+
+    private async createRole(roleNames: string[]) {
         const self = this;
 
+        // look for an unused role name that we can manage
+        let unusedName = '';
+        for (const rolename of roleNames) {
+            let roleExists = self.guild?.roles.cache.find(r => r.name === rolename);
+            if (roleExists === undefined) {
+                unusedName = rolename;
+                break;
+            }
+        }
+
+        // create role
+        return await self.guild?.roles.create({
+            data: {
+                name: unusedName,
+                color: "Blue",
+                permissions: []
+            },
+            reason: 'Factorio players can see server channels'
+        });
+    }
+
+    async assignNerdRole(id: string | undefined) {
+        const self = this;
+
+        if (id === undefined) {
+            return;
+        }
+
         // get member
-        const member = await self.guild?.members.cache.find(m => m.id === message.author.id);
+        const member = await self.guild?.members.cache.find(m => m.id === id);
 
         // give them role
         if (member !== undefined && self.nerdRole !== undefined) {
@@ -166,73 +150,11 @@ export class DiscordManager {
         }
     }
 
-    async addNewChannel(channelName: string) {
-        const self = this;
-
-        try {
-            // create or get category for our channels
-            const categoryChannel = await self.createCategory(config.discord.categoryName);
-
-            // create game server specific channels and associated webhook
-            const newChannel = await self.createChannel(channelName, categoryChannel);
-            //const newWebhook = await self.createWebhook(newChannel);
-            const voiceChannel = await self.createVoiceChannel(channelName, categoryChannel);
-
-            if (newChannel !== undefined && voiceChannel !== undefined) {
-                self.gameServerChannels.push({
-                    channel: newChannel,
-                    //webhook: newWebhook,
-                    voice: voiceChannel
-                })
-            }
-        }
-        catch (error) {
-            console.error(error);
-        }
-    }
-
-    getChannel(channelName: string) {
-        const self = this;
-        return self.gameServerChannels.find(gsc => gsc.channel.name.toLowerCase() === channelName.toLowerCase());
-    }
-
-    private async removeChannel(channel: discord.Channel) {
-        const self = this;
-
-        try {
-            // delete channel from discord
-            await channel.delete();
-        }
-        catch (error) {
-            console.error(error);
-        }
-    }
-
-    private async createRole(roleName: string, roleColor: string) {
-        const self = this;
-        let factorioNerdRole = self.guild?.roles.cache.find(r => r.name === roleName);
-        if (factorioNerdRole !== undefined) {
-            const member = self.guild?.members.cache.find(m => m.user.id === self.bot?.user?.id);
-            member?.roles.add(factorioNerdRole);
-            return factorioNerdRole; // role exists
-        }
-
-        factorioNerdRole = await self.guild?.roles.create({
-            data: {
-                name: roleName,
-                color: roleColor
-            },
-            reason: 'Factorio players can see server channels'
-        });
-
-        self.guild?.roles.add(self.bot.user);
-        return factorioNerdRole;
-    }
 
     // creates facotrio server category if it does not exist
     private async createCategory(categoryName: string): Promise<discord.CategoryChannel | undefined> {
         const self = this;
-
+        
         try {
             // if guild exists...which it should since we're in it
             if (self.guild !== undefined) {
@@ -268,7 +190,6 @@ export class DiscordManager {
 
     // deletes factorio server category
     private async deleteCategory(categoryName: string) {
-        console.log('delete cata');
         const self = this;
 
         try {
@@ -292,10 +213,48 @@ export class DiscordManager {
         }
     }
 
-    // adds channels to factorio server catefory if it does not exist
-    private async createChannel(channelName: string, categoryChannel: discord.CategoryChannel | undefined) {
+    private async deleteChannel(channel: discord.Channel) {
+        const self = this;
+        try {
+            // delete channel from discord
+            await channel.delete();
+        }
+        catch (error) {
+            console.error(error);
+        }
+    }
+
+    async addNewChannel(channelName: string) {
         const self = this;
 
+        try {
+            // create or get category for our channels
+            const categoryChannel = await self.createCategory(config.discord.categoryName);
+
+            // create game server specific channels and associated webhook
+            const newChannel = await self.createTextChannel(channelName, categoryChannel);
+            const voiceChannel = await self.createVoiceChannel(channelName, categoryChannel);
+
+            if (newChannel !== undefined && voiceChannel !== undefined) {
+                self.gameServerChannels.push({
+                    channel: newChannel,
+                    voice: voiceChannel
+                })
+            }
+        }
+        catch (error) {
+            console.error(error);
+        }
+    }
+
+    getChannel(channelName: string) {
+        const self = this;
+        return self.gameServerChannels.find(gsc => gsc.channel.name.toLowerCase() === channelName.toLowerCase());
+    }
+
+    // adds channels to factorio server catefory if it does not exist
+    private async createTextChannel(channelName: string, categoryChannel: discord.CategoryChannel | undefined) {
+        const self = this;
         try {
             // if guild exists...which it should
             if (self.guild !== undefined) {
@@ -360,38 +319,6 @@ export class DiscordManager {
         }
     }
 
-    // creates a webhook
-    private async createWebhook(channel: discord.TextChannel | undefined): Promise<discord.Webhook | undefined> {
-        const self = this;
-
-        if (channel === undefined) {
-            return;
-        }
-
-        try {
-            // how could we ever be null!?
-            if (self.bot.user !== null) {
-
-                // check for webhook with out name
-                const webhooks = await channel.fetchWebhooks();
-                const webhook = webhooks.find(w => w.name === self.bot.user?.username);
-                // couldnt find it? create it
-                if (webhook === undefined) {
-                    return await channel.createWebhook(self.bot.user.username);
-                }
-
-                // return webhook
-                return webhook;
-            }
-
-            return undefined;
-        }
-        catch (error) {
-            console.error(error);
-            return undefined;
-        }
-    }
-
     private async createVoiceChannel(channelName: string, categoryChannel: discord.CategoryChannel | undefined) {
         const self = this;
         channelName = channelName + ' yelling place';
@@ -441,6 +368,41 @@ export class DiscordManager {
         catch (error) {
             console.error(error);
             return undefined;
+        }
+    }
+
+    async removeAllChannels() {
+        const self = this;
+        // this is unused since it was created for kick events... but if we're kicked we cannot do anything to that server
+        self.removeListeners();
+        for (const chan of self.gameServerChannels) {
+            await self.deleteChannel(chan.channel);
+            await self.deleteChannel(chan.voice);
+        }
+
+        // reset array
+        self.gameServerChannels = [];
+
+        if (self.managementChannel !== undefined) {
+            await self.deleteChannel(self.managementChannel);
+        }
+
+        await self.deleteCategory(config.discord.categoryName);
+    }
+
+    async removeChannel(channel: {
+        channel: discord.TextChannel,
+        voice: discord.VoiceChannel
+    }) {
+        const self = this;
+
+        // look for index of items
+        const channels = self.gameServerChannels.find(gsc => gsc.channel.id === channel.channel.id);
+        if (channels !== undefined) {
+            const index = self.gameServerChannels.indexOf(channels);
+            await self.deleteChannel(channel.channel);
+            await self.deleteChannel(channel.voice);
+            self.gameServerChannels.splice(index, 1);
         }
     }
 }

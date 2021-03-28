@@ -13,6 +13,7 @@ export class SocketManager {
     killSocket: boolean;
 
     constructor(serverName: string, serverToken: string) {
+        console.log(serverName);
         this.serverName = serverName;
         this.serverToken = serverToken;
         this.socketEmitter = new SocketEventEmitter();
@@ -32,6 +33,7 @@ export class SocketManager {
     endConnection(): void {
         const self = this;
         self.killSocket = true;
+        console.log(`${self.serverName} connection ended with server removal`);
         self.connection?.close();
     }
 
@@ -75,7 +77,7 @@ export class SocketManager {
                     setTimeout(keepAlive, 10000);
                 }
                 keepAlive();
-            })
+            });
         })
     }
 
