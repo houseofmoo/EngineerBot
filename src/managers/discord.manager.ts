@@ -147,11 +147,11 @@ export class DiscordManager {
             }
 
             // get member
-            const member = await self.guild?.members.cache.find(m => m.id === id);
+            const member = self.guild?.members.cache.find(m => m.id === id);
 
             // give them role
             if (member !== undefined && self.nerdRole !== undefined) {
-                await member?.roles.add(self.nerdRole);
+                await member.roles.add(self.nerdRole);
             }
 
         }
@@ -169,24 +169,26 @@ export class DiscordManager {
             if (self.guild !== undefined) {
 
                 // check if category already exists
-                const exists = self.guild.channels.cache.find(category => category.name === categoryName);
-                if (exists !== undefined) {
-                    return exists as discord.CategoryChannel;
+                let categoryChannel = self.guild.channels.cache.find(category => category.name === categoryName);
+                if (categoryChannel === undefined) {
+                    // create the category channnel
+                    categoryChannel = await self.guild.channels.create(categoryName, {
+                        type: 'category'
+                    });
                 }
 
-                // create the category channnel
-                const category = await self.guild.channels.create(categoryName, {
-                    type: 'category'
-                });
-
-                // do not allow everyone to see this channel
+                // bot can see and manage this category
                 const botRole = self.guild.roles.cache.find(r => r.name === self.bot?.user?.username);
                 if (botRole !== undefined) {
-                    await category.updateOverwrite(botRole, { VIEW_CHANNEL: true });
-                    await category.updateOverwrite(botRole, { MANAGE_CHANNELS: true });
+                    await categoryChannel.updateOverwrite(botRole, { VIEW_CHANNEL: true });
+                    await categoryChannel.updateOverwrite(botRole, { MANAGE_CHANNELS: true });
                 }
 
-                return category;
+                // @everyone can see but not manage this category
+                await categoryChannel.updateOverwrite(self.guild.roles.everyone, { VIEW_CHANNEL: true });
+                await categoryChannel.updateOverwrite(self.guild.roles.everyone, { MANAGE_CHANNELS: false });
+
+                return categoryChannel as discord.CategoryChannel;
             }
             // we couldn't find the guild...thats weird
             console.error('We couldnt find the guild we are in...');
@@ -243,19 +245,22 @@ export class DiscordManager {
             if (self.guild !== undefined) {
 
                 // check if management channel already exists
-                const channel = categoryChannel.children.find(c => c.name === managementName);
-                if (channel !== undefined) {
-                    return channel as discord.TextChannel;
+                let managementChannel = categoryChannel.children.find(c => c.name === managementName);
+                if (managementChannel === undefined) {
+                    // create management channel
+                    managementChannel = await self.guild.channels.create(managementName, {
+                        type: 'text'
+                    });
                 }
 
-                // create management channel, everyone can see it
-                const managementChannel = await self.guild.channels.create(managementName, {
-                    type: 'text'
-                });
-                
+                // set parent
                 await managementChannel.setParent(categoryChannel);
+
+                // @everyone can see but not manage this channel
                 await managementChannel.updateOverwrite(self.guild.roles.everyone, { VIEW_CHANNEL: true });
-                return managementChannel;
+                await managementChannel.updateOverwrite(self.guild.roles.everyone, { MANAGE_CHANNELS: false });
+
+                return managementChannel as discord.TextChannel;
             }
 
             // not a memeber of any guilds
@@ -280,20 +285,13 @@ export class DiscordManager {
             if (self.guild !== undefined) {
 
                 // check if channels already exist
-                const channel = categoryChannel.children.find(c => c.name === channelName);
-                if (channel !== undefined) {
-                    /// update channel permissions to include viewable by nerd role
-                    if (self.nerdRole !== undefined) {
-                        channel.updateOverwrite(self.nerdRole, { VIEW_CHANNEL: true });
-                    }
-
-                    return channel;
+                let newChannel = categoryChannel.children.find(c => c.name === channelName);
+                if (newChannel === undefined) {
+                    // create channel
+                    newChannel = await self.guild.channels.create(channelName, {
+                        type: channelType,
+                    });
                 }
-
-                // create channel
-                const newChannel = await self.guild.channels.create(channelName, {
-                    type: channelType,
-                });
 
                 // make channel child of category
                 await newChannel.setParent(categoryChannel);
@@ -305,12 +303,14 @@ export class DiscordManager {
                     await newChannel.updateOverwrite(botRole, { MANAGE_CHANNELS: true });
                 }
 
-                // @everyone cannot see this channel
+                // @everyone cannot see or manage this channel
                 await newChannel.updateOverwrite(self.guild.roles.everyone, { VIEW_CHANNEL: false });
+                await newChannel.updateOverwrite(self.guild.roles.everyone, { MANAGE_CHANNELS: false });
 
                 // allow nerd role to see channel
                 if (self.nerdRole !== undefined) {
                     await newChannel.updateOverwrite(self.nerdRole, { VIEW_CHANNEL: true })
+                    await newChannel.updateOverwrite(self.nerdRole, { MANAGE_CHANNELS: false });
                 }
 
                 return newChannel;
