@@ -26,8 +26,8 @@ export class ServerManager {
     serverIp: string;
     gameVersion: string;
 
-    modHandler: ModHandler;
-    socketHandler: SocketManager;
+    //modHandler: ModHandler;
+    socketManager: SocketManager;
     discordEmitter: DiscordMessageEmitter;
 
     serverCommands: ServerCommands;
@@ -47,43 +47,43 @@ export class ServerManager {
         this.serverIp = '';
         this.gameVersion = '';
 
-        this.modHandler = new ModHandler();
-        this.socketHandler = new SocketManager(this.serverName, this.serverToken);
+        //this.modHandler = new ModHandler();
+        this.socketManager = new SocketManager(this.serverName, this.serverToken);
         this.discordEmitter = discordEmitter;
 
         this.serverCommands = new ServerCommands();
 
         this.addActions();
         this.addListeners();
-        this.socketHandler.connect();
+        this.socketManager.connect();
     }
 
     private addListeners() {
         const self = this;
 
         self.captureSocketStatus = self.captureSocketStatus.bind(self);
-        self.socketHandler.socketEmitter.addListener('socketStatus', self.captureSocketStatus);
+        self.socketManager.socketEmitter.addListener('socketStatus', self.captureSocketStatus);
 
         self.captureSecret = self.captureSecret.bind(self);
-        self.socketHandler.socketEmitter.addListener('receivedSecret', self.captureSecret);
+        self.socketManager.socketEmitter.addListener('receivedSecret', self.captureSecret);
 
         self.captureSaves = self.captureSaves.bind(self);
-        self.socketHandler.socketEmitter.addListener('receivedSaves', self.captureSaves);
+        self.socketManager.socketEmitter.addListener('receivedSaves', self.captureSaves);
 
         self.captureVersions = self.captureVersions.bind(self);
-        self.socketHandler.socketEmitter.addListener('receivedVersions', self.captureVersions);
+        self.socketManager.socketEmitter.addListener('receivedVersions', self.captureVersions);
 
         self.captureRegions = self.captureRegions.bind(self);
-        self.socketHandler.socketEmitter.addListener('receivedRegions', self.captureRegions);
+        self.socketManager.socketEmitter.addListener('receivedRegions', self.captureRegions);
 
         self.captureMods = self.captureMods.bind(self);
-        self.socketHandler.socketEmitter.addListener('receivedMods', self.captureMods);
+        self.socketManager.socketEmitter.addListener('receivedMods', self.captureMods);
 
         self.captureStateChange = self.captureStateChange.bind(self);
-        self.socketHandler.socketEmitter.addListener('receivedState', self.captureStateChange);
+        self.socketManager.socketEmitter.addListener('receivedState', self.captureStateChange);
 
         self.captureInfo = self.captureInfo.bind(self);
-        self.socketHandler.socketEmitter.addListener('receivedInfo', self.captureInfo);
+        self.socketManager.socketEmitter.addListener('receivedInfo', self.captureInfo);
     }
 
     private addActions() {
@@ -140,14 +140,14 @@ export class ServerManager {
     }
 
     private removeListeners() {
-        this.socketHandler.socketEmitter.removeAllListeners('socketStatus');
-        this.socketHandler.socketEmitter.removeAllListeners('receivedSecret');
-        this.socketHandler.socketEmitter.removeAllListeners('receivedSaves');
-        this.socketHandler.socketEmitter.removeAllListeners('receivedVersions');
-        this.socketHandler.socketEmitter.removeAllListeners('receivedRegions');
-        this.socketHandler.socketEmitter.removeAllListeners('receivedMods');
-        this.socketHandler.socketEmitter.removeAllListeners('receivedState');
-        this.socketHandler.socketEmitter.removeAllListeners('receivedInfo');
+        this.socketManager.socketEmitter.removeAllListeners('socketStatus');
+        this.socketManager.socketEmitter.removeAllListeners('receivedSecret');
+        this.socketManager.socketEmitter.removeAllListeners('receivedSaves');
+        this.socketManager.socketEmitter.removeAllListeners('receivedVersions');
+        this.socketManager.socketEmitter.removeAllListeners('receivedRegions');
+        this.socketManager.socketEmitter.removeAllListeners('receivedMods');
+        this.socketManager.socketEmitter.removeAllListeners('receivedState');
+        this.socketManager.socketEmitter.removeAllListeners('receivedInfo');
     }
 
     private isValidSlot(slotId: string) {
@@ -216,7 +216,7 @@ export class ServerManager {
         await removeAllMods(self.guildId, self.serverToken);
         await removeSaves(self.guildId, self.serverToken);
         await removeServer(self.guildId, self.serverToken);
-        self.socketHandler.endConnection();
+        self.socketManager.endConnection();
     }
 
     async listSaves(commandId: string, args: string[], message: discord.Message) {

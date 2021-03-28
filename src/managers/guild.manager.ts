@@ -32,7 +32,7 @@ export class GuildManager {
     async initManagers() {
         const self = this;
 
-        // get serverList
+        // get serverList from db
         const serverList: any = await getServers(self.guildId);
         
         // if no servers just init discord manager
@@ -74,12 +74,10 @@ export class GuildManager {
 
     async remove() {
         const self = this;
+        // if we're calling this we were kicked from the guild
         await Promise.all(self.gameServerManagers.map(async (gsm) => {
             await gsm.remove();
         }));
-
-        // if we're kicked from a channel we cannot clean up after ourselves
-        //await self.discordManager.remove();
     }
 
     receivedMessage(message: discord.Message) {
@@ -194,7 +192,6 @@ export class GuildManager {
         socket.connect(urls.gameServer.websocket);
     }
 
-    // validates token, if token is null gets a new token
     async validateToken(serverName: string, token: string | null, json: any): Promise<void> {
         const self = this;
         const response = await login(json.secret, token);
@@ -209,7 +206,6 @@ export class GuildManager {
         self.createServerManager(serverName, response.data.userToken);
     }
 
-    // add new server data to db and create game server manager
     async createServerManager(serverName: string, token: string) {
         const self = this;
 

@@ -161,7 +161,6 @@ export class DiscordManager {
         }
     }
 
-    // creates facotrio server category if it does not exist
     private async createCategory(categoryName: string): Promise<discord.CategoryChannel | undefined> {
         const self = this;
 
@@ -306,7 +305,6 @@ export class DiscordManager {
                     await newChannel.updateOverwrite(botRole, { MANAGE_CHANNELS: true });
                 }
 
-
                 // @everyone cannot see this channel
                 await newChannel.updateOverwrite(self.guild.roles.everyone, { VIEW_CHANNEL: false });
 
@@ -367,7 +365,6 @@ export class DiscordManager {
         return self.gameServerChannels.find(gsc => gsc.channel.name.toLowerCase() === channelName.toLowerCase());
     }
 
-    // deletes factorio server category
     private async deleteCategory(categoryName: string) {
         const self = this;
 
