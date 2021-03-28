@@ -118,24 +118,32 @@ export class DiscordManager {
         const self = this;
 
         // look for an unused role name that we can manage
-        let unusedName = '';
         for (const rolename of roleNames) {
-            let roleExists = self.guild?.roles.cache.find(r => r.name === rolename);
-            if (roleExists === undefined) {
-                unusedName = rolename;
-                break;
+            // look for existing role
+            const existingRole = self.guild?.roles.cache.find(r => r.name === rolename);
+            
+            // if role exists, check if we can manage that role, if we can return it
+            if (existingRole !== undefined) {
+                const me = self.guild?.members.cache.find(m => m.id === self.bot?.user?.id);
+                if (me !== undefined && me.roles.highest.comparePositionTo(existingRole)) {
+                    return existingRole;
+                }
+            }
+            // role does not exist, create and return it
+            else {
+                return await self.guild?.roles.create({
+                    data: {
+                        name: rolename,
+                        color: "#f542f5",
+                        permissions: []
+                    },
+                    reason: 'Factorio players can see server channels'
+                });
             }
         }
 
-        // create role
-        return await self.guild?.roles.create({
-            data: {
-                name: unusedName,
-                color: "Blue",
-                permissions: []
-            },
-            reason: 'Factorio players can see server channels'
-        });
+        console.log('there we no roles we could create or manage!');
+        return undefined;
     }
 
     async assignNerdRole(id: string | undefined) {
