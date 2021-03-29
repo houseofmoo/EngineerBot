@@ -23,7 +23,6 @@ export enum GuildCommandId {
     servercreate = "servercreate",
     serveradd = "serveradd",
     serverremove = "serverremove",
-    list = "list",
     servers = "servers",
     newplayer = "newplayer",
     commands = "commands"
@@ -41,7 +40,7 @@ export enum ServerState {
     Stopping = "stoppinng"
 }
 
-export enum SocketStatus {
+export enum SocketState {
     Connected,
     Disconnected
 }

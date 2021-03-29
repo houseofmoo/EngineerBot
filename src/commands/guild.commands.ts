@@ -12,7 +12,7 @@ export class GuildCommands {
                 minArgCount: 1,
                 maxArgCount: 1,
                 format: `${config.bot.commandPrefix}${GuildCommandId.servercreate} serverName`,
-                help: `Generates a new server token and adds server to server list`,
+                help: `Generates a new server adds server to server list`,
                 action: async (commandId: string, args: string[], message: discord.Message) => { }
             },
             {
@@ -20,7 +20,7 @@ export class GuildCommands {
                 minArgCount: 2,
                 maxArgCount: 2,
                 format: `${config.bot.commandPrefix}${GuildCommandId.serveradd} serverName serverToken`,
-                help: `Adds a new server to server list`,
+                help: `Adds an exiting server to server list`,
                 action: async (commandId: string, args: string[], message: discord.Message) => { }
             },
             {
@@ -29,14 +29,6 @@ export class GuildCommands {
                 maxArgCount: 2,
                 format: `${config.bot.commandPrefix}${GuildCommandId.serverremove} serverName serverToken`,
                 help: `Removes a server from server list. Contents of server are unaffected and can be viewed at https://factorio.zone`,
-                action: async (commandId: string, args: string[], message: discord.Message) => { }
-            },
-            {
-                commandId: GuildCommandId.list,
-                minArgCount: 0,
-                maxArgCount: 0,
-                format: `${config.bot.commandPrefix}${GuildCommandId.list}`,
-                help: `Lists all servers`,
                 action: async (commandId: string, args: string[], message: discord.Message) => { }
             },
             {
@@ -52,7 +44,7 @@ export class GuildCommands {
                 minArgCount: 0,
                 maxArgCount: 0,
                 format: `${config.bot.commandPrefix}${GuildCommandId.newplayer}`,
-                help: `Sets user role to Factorio-Nerd, allowing user to view factorio servers`,
+                help: `Gives user role to view server specific text and voice channels`,
                 action: async (commandId: string, args: string[], message: discord.Message) => { }
             },
             {
@@ -60,7 +52,7 @@ export class GuildCommands {
                 minArgCount: 0,
                 maxArgCount: 0,
                 format: `${config.bot.commandPrefix}${GuildCommandId.commands}`,
-                help: `return a list of available guild commands`,
+                help: `Return a list of available server management commands`,
                 action: async (commandId: string, args: string[], message: discord.Message) => { }
             }
         ]

@@ -63,9 +63,6 @@ export class GuildManager {
         self.guildCommands.addGuildAction(GuildCommandId.serverremove, self.removeServer);
 
         self.listServers = self.listServers.bind(self);
-        self.guildCommands.addGuildAction(GuildCommandId.list, self.listServers);
-
-        self.listServers = self.listServers.bind(self);
         self.guildCommands.addGuildAction(GuildCommandId.servers, self.listServers);
 
         self.newPlayer = self.newPlayer.bind(self);

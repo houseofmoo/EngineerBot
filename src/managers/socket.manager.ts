@@ -1,6 +1,6 @@
 import websocket from 'websocket';
 import { SocketEventEmitter } from '../emitters/socket.event.emitter';
-import { ServerState, ServerEvent, SocketStatus } from '../models/enumerations';
+import { ServerState, ServerEvent, SocketState } from '../models/enumerations';
 import urls from '../data/api.urls.json';
 
 export class SocketManager {
@@ -13,7 +13,6 @@ export class SocketManager {
     killSocket: boolean;
 
     constructor(serverName: string, serverToken: string) {
-        console.log(serverName);
         this.serverName = serverName;
         this.serverToken = serverToken;
         this.socketEmitter = new SocketEventEmitter();
@@ -46,7 +45,7 @@ export class SocketManager {
 
         self.socket.on('connectFailed', error => {
             const failedMsg = `Failed to connect to server`;
-            self.socketEmitter.emit('socketStatus', failedMsg, SocketStatus.Disconnected, error);
+            self.socketEmitter.emit('socketStatus', failedMsg, SocketState.Disconnected, error);
             if (!self.killSocket) {
                 setTimeout(self.connect, 3000);
             }
@@ -55,11 +54,11 @@ export class SocketManager {
         self.socket.on('connect', connection => {
             self.connection = connection;
             const connectedMsg = `Server connection established`;
-            self.socketEmitter.emit('socketStatus', connectedMsg, SocketStatus.Connected, undefined);
+            self.socketEmitter.emit('socketStatus', connectedMsg, SocketState.Connected, undefined);
 
             connection.on('error', error => {
                 const errMsg = `Server connection error`
-                self.socketEmitter.emit('socketStatus', errMsg, SocketStatus.Disconnected, error);
+                self.socketEmitter.emit('socketStatus', errMsg, SocketState.Disconnected, error);
                 self.connection?.close();
                 self.connection = undefined;
             })
@@ -67,7 +66,7 @@ export class SocketManager {
             connection.on('close', () => {
                 self.connection = undefined;
                 const closeMsg = 'Reconnecting to server'
-                self.socketEmitter.emit('socketStatus', closeMsg, SocketStatus.Disconnected, undefined);
+                self.socketEmitter.emit('socketStatus', closeMsg, SocketState.Disconnected, undefined);
                 if (!self.killSocket) {
                     setTimeout(self.connect, 3000);
                 }

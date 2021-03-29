@@ -8,7 +8,7 @@ import { getServer, updateServer, removeServer } from '../database/server.db';
 import { getGameMods, getGameMod, addGameMod, removeAllMods, updateGameMod } from '../database/mods.db';
 import { addSaves, getSaves, removeSaves, updateSaves } from '../database/saves.db';
 import { Server } from '../models/data.types';
-import { ServerState, ServerEvent, ServerCommandId, SocketStatus } from '../models/enumerations'
+import { ServerState, ServerEvent, ServerCommandId, SocketState } from '../models/enumerations'
 import { ServerCommands } from '../commands/server.commands';
 import config from '../data/config.json'
 
@@ -21,7 +21,7 @@ export class ServerManager {
     visitSecret: string;
     launchId: string;
     serverState: ServerState;
-    socketStatus: SocketStatus;
+    socketState: SocketState;
 
     serverIp: string;
     gameVersion: string;
@@ -42,7 +42,7 @@ export class ServerManager {
         this.visitSecret = '';
         this.launchId = '';
         this.serverState = ServerState.Offline;
-        this.socketStatus = SocketStatus.Disconnected;
+        this.socketState = SocketState.Disconnected;
 
         this.serverIp = '';
         this.gameVersion = '';
@@ -432,7 +432,7 @@ export class ServerManager {
         }
 
         // confirm connected to socket
-        if (self.socketStatus === SocketStatus.Disconnected) {
+        if (self.socketState === SocketState.Disconnected) {
             self.discordEmitter.emit('sendGameServerMsg', self.serverName, 'Attempting to re-establish connection with server, cannot perform server commands');
             return;
         }
@@ -478,7 +478,7 @@ export class ServerManager {
         const self = this;
 
         // confirm connected to socket
-        if (self.socketStatus === SocketStatus.Disconnected) {
+        if (self.socketState === SocketState.Disconnected) {
             self.discordEmitter.emit('sendGameServerMsg', self.serverName, 'Attempting to re-establish connection with server, cannot perform server commands');
             return;
         }
@@ -506,7 +506,7 @@ export class ServerManager {
         const self = this;
 
         // confirm connected to socket
-        if (self.socketStatus === SocketStatus.Disconnected) {
+        if (self.socketState === SocketState.Disconnected) {
             self.discordEmitter.emit('sendGameServerMsg', self.serverName, 'Attempting to re-establish connection with server, cannot perform server commands');
             return;
         }
@@ -535,7 +535,7 @@ export class ServerManager {
         const username = args[0];
 
         // confirm connected to socket
-        if (self.socketStatus === SocketStatus.Disconnected) {
+        if (self.socketState === SocketState.Disconnected) {
             self.discordEmitter.emit('sendGameServerMsg', self.serverName, 'Attempting to re-establish connection with server, cannot perform server commands');
             return;
         }
@@ -639,13 +639,13 @@ export class ServerManager {
         this.discordEmitter.emit('sendGameServerMsg', self.serverName, cheatsEmbed);
     }
 
-    captureSocketStatus(msg: string, status: SocketStatus, err: Error | undefined) {
+    captureSocketStatus(msg: string, state: SocketState, err: Error | undefined) {
         const self = this;
         self.discordEmitter.emit('sendGameServerMsg', self.serverName, msg);
-        self.socketStatus = status;
+        self.socketState = state;
 
         // if the socket is disconnected reset visit secret and launch id
-        if (self.socketStatus === SocketStatus.Disconnected) {
+        if (self.socketState === SocketState.Disconnected) {
             self.visitSecret = '';
             self.launchId = '';
         }

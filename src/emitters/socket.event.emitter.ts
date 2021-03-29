@@ -1,9 +1,9 @@
 import { TypedEmitter } from 'tiny-typed-emitter';
-import { ServerState, ServerEvent, SocketStatus } from '../models/enumerations';
+import { ServerState, ServerEvent, SocketState } from '../models/enumerations';
 
 interface ISocketEventEmitter {
     // websocket status
-    socketStatus: (msg: string, status: SocketStatus, err: Error | undefined) => void;
+    socketStatus: (msg: string, state: SocketState, err: Error | undefined) => void;
 
     // websocket messages
     receivedSecret: (secret: string) => void;
